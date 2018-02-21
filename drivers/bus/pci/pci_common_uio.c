@@ -212,8 +212,10 @@ pci_uio_unmap_resource(struct rte_pci_device *dev)
 		return;
 
 	/* secondary processes - just free maps */
-	if (rte_eal_process_type() != RTE_PROC_PRIMARY)
-		return pci_uio_unmap(uio_res);
+	if (rte_eal_process_type() != RTE_PROC_PRIMARY) {
+		pci_uio_unmap(uio_res);
+		return;
+	}
 
 	TAILQ_REMOVE(uio_res_list, uio_res, next);
 

@@ -1056,10 +1056,15 @@ struct i40e_adapter {
 	struct rte_timecounter rx_tstamp_tc;
 	struct rte_timecounter tx_tstamp_tc;
 
+#ifndef _WIN64
 	/* ptype mapping table */
 	uint32_t ptype_tbl[I40E_MAX_PKT_TYPE] __rte_cache_min_aligned;
 	/* flow type to pctype mapping table */
 	uint64_t pctypes_tbl[I40E_FLOW_TYPE_MAX] __rte_cache_min_aligned;
+#else
+	RTE_CACHE_MIN_ALIGN uint32_t ptype_tbl[I40E_MAX_PKT_TYPE];
+	RTE_CACHE_MIN_ALIGN uint64_t pctypes_tbl[I40E_FLOW_TYPE_MAX];
+#endif
 	uint64_t flow_types_mask;
 	uint64_t pctypes_mask;
 };

@@ -53,7 +53,12 @@ rte_strerror(int errnum)
 	static const char *sep = "";
 #endif
 #define RETVAL_SZ 256
+#ifdef _WIN64
+	typedef char c_retval[RETVAL_SZ];
+	RTE_DEFINE_PER_LCORE(static c_retval, retval);
+#else
 	static RTE_DEFINE_PER_LCORE(char[RETVAL_SZ], retval);
+#endif
 	char *ret = RTE_PER_LCORE(retval);
 
 	/* since some implementations of strerror_r throw an error
@@ -67,9 +72,13 @@ rte_strerror(int errnum)
 		case E_RTE_NO_CONFIG:
 			return "Missing rte_config structure";
 		default:
+#ifdef _WIN64
+		    	strerror_s(RTE_PER_LCORE(retval), RETVAL_SZ, errnum);
+#else
 			if (strerror_r(errnum, ret, RETVAL_SZ) != 0)
 				snprintf(ret, RETVAL_SZ, "Unknown error%s %d",
 						sep, errnum);
+#endif
 		}
 
 	return ret;

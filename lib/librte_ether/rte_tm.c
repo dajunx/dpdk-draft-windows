@@ -67,12 +67,12 @@ rte_tm_ops_get(uint16_t port_id, struct rte_tm_error *error)
 
 	return ops;
 }
-
-#define RTE_TM_FUNC(port_id, func)				\
+#ifndef _WIN64
+#define RTE_TM_FUNC(port_id, func)			\
 ({							\
 	const struct rte_tm_ops *ops =			\
 		rte_tm_ops_get(port_id, error);		\
-	if (ops == NULL)					\
+	if (ops == NULL)				\
 		return -rte_errno;			\
 							\
 	if (ops->func == NULL)				\
@@ -84,6 +84,9 @@ rte_tm_ops_get(uint16_t port_id, struct rte_tm_error *error)
 							\
 	ops->func;					\
 })
+#else
+#define RTE_TM_FUNC(port_id, func)	((rte_tm_ops_get(port_id, error)->func))
+#endif
 
 /* Get number of leaf nodes */
 int

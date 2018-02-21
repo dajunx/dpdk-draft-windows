@@ -40,29 +40,45 @@ static __attribute__((__always_inline__)) inline
 unsigned int rte_xbegin(void)
 {
 	unsigned int ret = RTE_XBEGIN_STARTED;
-
+#ifndef _WIN64
 	asm volatile(".byte 0xc7,0xf8 ; .long 0" : "+a" (ret) :: "memory");
+#else
+	/* Add appropriate asm here for Windows compilers */
+#endif
 	return ret;
 }
 
 static __attribute__((__always_inline__)) inline
 void rte_xend(void)
 {
-	 asm volatile(".byte 0x0f,0x01,0xd5" ::: "memory");
+#ifndef _WIN64
+	asm volatile(".byte 0x0f,0x01,0xd5" ::: "memory");
+#else
+	/* Add appropriate asm here for Windows compilers */
+#endif
 }
 
 /* not an inline function to workaround a clang bug with -O0 */
+#ifndef _WIN64
 #define rte_xabort(status) do { \
 	asm volatile(".byte 0xc6,0xf8,%P0" :: "i" (status) : "memory"); \
 } while (0)
+#else
+#define rte_xabort(status) do { \
+	/* Add appropriate asm here for Windows compilers */ \
+} while (0)
+#endif
 
 static __attribute__((__always_inline__)) inline
 int rte_xtest(void)
 {
-	unsigned char out;
-
+	unsigned char out = 0;
+#ifndef _WIN64
 	asm volatile(".byte 0x0f,0x01,0xd6 ; setnz %0" :
 		"=r" (out) :: "memory");
+#else
+	/* Add appropriate asm here for Windows compilers */
+#endif
 	return out;
 }
 

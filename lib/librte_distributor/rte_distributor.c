@@ -48,6 +48,10 @@
 #include "rte_distributor_v20.h"
 #include "rte_distributor_v1705.h"
 
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
+
 TAILQ_HEAD(rte_dist_burst_list, rte_distributor);
 
 static struct rte_tailq_elem rte_dist_burst_tailq = {
@@ -371,7 +375,11 @@ rte_distributor_process_v1705(struct rte_distributor *d,
 	struct rte_mbuf *next_mb = NULL;
 	int64_t next_value = 0;
 	uint16_t new_tag = 0;
+#ifndef _WIN64
 	uint16_t flows[RTE_DIST_BURST_SIZE] __rte_cache_aligned;
+#else
+	RTE_CACHE_ALIGN uint16_t flows[RTE_DIST_BURST_SIZE];
+#endif
 	unsigned int i, j, w, wid;
 
 	if (d->alg_type == RTE_DIST_ALG_SINGLE) {

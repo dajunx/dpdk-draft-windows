@@ -43,6 +43,11 @@
 #include <sys/queue.h>
 
 #include <rte_debug.h>
+
+#ifdef _WIN64
+#undef typeof
+#define typeof(x) uint16_t
+#endif
 #include <rte_common.h>
 #include <rte_log.h>
 #include <rte_memory.h>

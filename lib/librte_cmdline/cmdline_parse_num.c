@@ -70,10 +70,18 @@
 #include "cmdline_parse.h"
 #include "cmdline_parse_num.h"
 
+#ifndef _WIN64
 #ifdef RTE_LIBRTE_CMDLINE_DEBUG
 #define debug_printf(args...) printf(args)
 #else
 #define debug_printf(args...) do {} while(0)
+#endif
+#else
+#ifdef RTE_LIBRTE_CMDLINE_DEBUG
+#define debug_printf(...) printf(__VA_ARGS__)
+#else
+#define debug_printf(...) do {} while(0)
+#endif
 #endif
 
 struct cmdline_token_ops cmdline_token_num_ops = {
@@ -83,6 +91,11 @@ struct cmdline_token_ops cmdline_token_num_ops = {
 	.get_help = cmdline_get_help_num,
 };
 
+#ifdef _WIN64
+#ifdef ERROR
+#undef ERROR
+#endif
+#endif
 
 enum num_parse_state_t {
 	START,
@@ -123,6 +136,7 @@ static int
 check_res_size(struct cmdline_token_num_data *nd, unsigned ressize)
 {
 	switch (nd->type) {
+#ifndef _WIN64
 	case INT8:
 	case UINT8:
 		if (ressize < sizeof(int8_t))
@@ -143,6 +157,28 @@ check_res_size(struct cmdline_token_num_data *nd, unsigned ressize)
 		if (ressize < sizeof(int64_t))
 			return -1;
 		break;
+#else
+	case INT8_T:
+	case UINT8_T:
+		if (ressize < sizeof(int8_t))
+			return -1;
+	    break;
+	case INT16_T:
+	case UINT16_T:
+		if (ressize < sizeof(int16_t))
+			return -1;
+	    break;
+	case INT32_T:
+	case UINT32_T:
+		if (ressize < sizeof(int32_t))
+			return -1;
+	    break;
+	case INT64_T:
+	case UINT64_T:
+		if (ressize < sizeof(int64_t))
+			return -1;
+	    break;
+#endif
 	default:
 		return -1;
 	}
@@ -313,6 +349,7 @@ cmdline_parse_num(cmdline_parse_token_hdr_t *tk, const char *srcbuf, void *res,
 	case HEX_OK:
 	case OCTAL_OK:
 	case BIN_OK:
+#ifndef _WIN64
 		if ( nd.type == INT8 && res1 <= INT8_MAX ) {
 			if (res) *(int8_t *)res = (int8_t) res1;
 			return buf-srcbuf;
@@ -345,12 +382,47 @@ cmdline_parse_num(cmdline_parse_token_hdr_t *tk, const char *srcbuf, void *res,
 			if (res) *(uint64_t *)res = res1;
 			return buf-srcbuf;
 		}
+#else
+		if (nd.type == INT8_T && res1 <= INT8_MAX) {
+			if (res) *(int8_t *)res = (int8_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT16_T && res1 <= INT16_MAX) {
+			if (res) *(int16_t *)res = (int16_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT32_T && res1 <= INT32_MAX) {
+			if (res) *(int32_t *)res = (int32_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT64_T && res1 <= INT64_MAX) {
+			if (res) *(int64_t *)res = (int64_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == UINT8_T && res1 <= UINT8_MAX) {
+			if (res) *(uint8_t *)res = (uint8_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == UINT16_T  && res1 <= UINT16_MAX) {
+			if (res) *(uint16_t *)res = (uint16_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == UINT32_T && res1 <= UINT32_MAX) {
+			if (res) *(uint32_t *)res = (uint32_t)res1;
+			return buf - srcbuf;
+		}
+		else if (nd.type == UINT64_T) {
+			if (res) *(uint64_t *)res = res1;
+			return buf - srcbuf;
+		}
+#endif
 		else {
 			return -1;
 		}
 		break;
 
 	case DEC_NEG_OK:
+#ifndef _WIN64
 		if ( nd.type == INT8 && res1 <= INT8_MAX + 1 ) {
 			if (res) *(int8_t *)res = (int8_t) (-res1);
 			return buf-srcbuf;
@@ -367,6 +439,24 @@ cmdline_parse_num(cmdline_parse_token_hdr_t *tk, const char *srcbuf, void *res,
 			if (res) *(int64_t *)res = (int64_t) (-res1);
 			return buf-srcbuf;
 		}
+#else
+		if (nd.type == INT8_T && res1 <= INT8_MAX + 1) {
+			if (res) *(int8_t *)res = (int8_t)(-res1);
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT16_T && res1 <= (uint16_t)INT16_MAX + 1) {
+			if (res) *(int16_t *)res = (int16_t)(-res1);
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT32_T && res1 <= (uint32_t)INT32_MAX + 1) {
+			if (res) *(int32_t *)res = (int32_t)(-res1);
+			return buf - srcbuf;
+		}
+		else if (nd.type == INT64_T && res1 <= (uint64_t)INT64_MAX + 1) {
+			if (res) *(int64_t *)res = (int64_t)(-res1);
+			return buf - srcbuf;
+		}
+#endif
 		else {
 			return -1;
 		}

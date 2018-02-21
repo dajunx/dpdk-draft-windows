@@ -2852,13 +2852,13 @@ i40e_flush_queue_region_all_conf(struct rte_eth_dev *dev,
 	ret = i40e_vsi_update_queue_region_mapping(hw, pf);
 	if (ret != I40E_SUCCESS)
 		PMD_DRV_LOG(INFO, "Failed to flush queue region mapping.");
-
+#ifndef _WIN64
 	ret = i40e_dcb_init_configure(dev, TRUE);
 	if (ret != I40E_SUCCESS) {
 		PMD_DRV_LOG(INFO, "Failed to flush dcb.");
 		pf->flags &= ~I40E_FLAG_DCB;
 	}
-
+#endif
 	i40e_init_queue_region_conf(dev);
 
 	return 0;

@@ -208,7 +208,11 @@ typedef uint16_t unaligned_uint16_t;
 static inline int
 rte_is_aligned(void *ptr, unsigned align)
 {
+#ifndef _WIN64
 	return RTE_PTR_ALIGN(ptr, align) == ptr;
+#else
+	return (((uintptr_t)ptr % align) == 0);
+#endif
 }
 
 /*********** Macros for compile type checks ********/

@@ -61,7 +61,11 @@ typedef uint64_t        u64;
 
 typedef enum i40e_status_code i40e_status;
 #define __iomem
+#ifndef _WIN64
 #define hw_dbg(hw, S, A...) do {} while (0)
+#else
+#define hw_dbg(hw, S, ...) do {} while (0)
+#endif
 #define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
 #define lower_32_bits(n) ((u32)(n))
 #define low_16_bits(x)   ((x) & 0xFFFF)
@@ -95,14 +99,19 @@ typedef enum i40e_status_code i40e_status;
 #define false           0
 #define true            1
 
+#ifndef _WIN64
 #define min(a,b) RTE_MIN(a,b)
 #define max(a,b) RTE_MAX(a,b)
+#endif
 
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 
 #define DEBUGOUT(S)        PMD_DRV_LOG_RAW(DEBUG, S)
+#ifndef _WIN64
 #define DEBUGOUT1(S, A...) PMD_DRV_LOG_RAW(DEBUG, S, ##A)
-
+#else
+#define DEBUGOUT1(S, ...) PMD_DRV_LOG_RAW(DEBUG, S, ##__VA_ARGS__)
+#endif
 #define DEBUGFUNC(F) DEBUGOUT(F "\n")
 #define DEBUGOUT2 DEBUGOUT1
 #define DEBUGOUT3 DEBUGOUT2

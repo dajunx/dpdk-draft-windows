@@ -107,7 +107,11 @@ port_groupx4(uint16_t pn[FWDSTEP + 1], uint16_t *lp, __m128i dp1, __m128i dp2)
 
 	dp1 = _mm_cmpeq_epi16(dp1, dp2);
 	dp1 = _mm_unpacklo_epi16(dp1, dp1);
+#ifndef _WIN64
 	v = _mm_movemask_ps((__m128)dp1);
+#else
+	v = _mm_movemask_ps(_mm_castsi128_ps(dp1));
+#endif
 
 	/* update last port counter. */
 	lp[0] += gptbl[v].lpv;

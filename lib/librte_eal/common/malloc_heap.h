@@ -37,6 +37,10 @@
 #include <rte_malloc.h>
 #include <rte_malloc_heap.h>
 
+#ifdef _WIN64
+#include <rte_lcore.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

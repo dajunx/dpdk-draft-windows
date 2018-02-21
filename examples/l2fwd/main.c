@@ -104,6 +104,10 @@ static unsigned int l2fwd_rx_queue_per_lcore = 1;
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 #define MAX_TX_QUEUE_PER_PORT 16
+
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct lcore_queue_conf {
 	unsigned n_rx_port;
 	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
@@ -129,6 +133,9 @@ static const struct rte_eth_conf port_conf = {
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
 /* Per-port statistics struct */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct l2fwd_port_statistics {
 	uint64_t tx;
 	uint64_t rx;

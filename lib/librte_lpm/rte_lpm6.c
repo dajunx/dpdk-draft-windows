@@ -111,10 +111,17 @@ struct rte_lpm6 {
 
 	/* LPM Tables. */
 	struct rte_lpm6_rule *rules_tbl; /**< LPM rules. */
+#ifndef _WIN64
 	struct rte_lpm6_tbl_entry tbl24[RTE_LPM6_TBL24_NUM_ENTRIES]
 			__rte_cache_aligned; /**< LPM tbl24 table. */
 	struct rte_lpm6_tbl_entry tbl8[0]
 			__rte_cache_aligned; /**< LPM tbl8 table. */
+#else
+	RTE_CACHE_ALIGN struct rte_lpm6_tbl_entry tbl24[RTE_LPM6_TBL24_NUM_ENTRIES];
+							/**< LPM tbl24 table. */
+	RTE_CACHE_ALIGN struct rte_lpm6_tbl_entry tbl8[0];
+							/**< LPM tbl8 table. */
+#endif
 };
 
 /*

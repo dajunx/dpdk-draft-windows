@@ -45,6 +45,9 @@ enum elem_state {
 	ELEM_PAD  /* element is a padding-only header */
 };
 
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct malloc_elem {
 	struct malloc_heap *heap;
 	struct malloc_elem *volatile prev;      /* points to prev elem in memseg */

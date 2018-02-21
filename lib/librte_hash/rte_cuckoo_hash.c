@@ -948,6 +948,7 @@ compare_signatures(uint32_t *prim_hash_matches, uint32_t *sec_hash_matches,
 #ifdef RTE_MACHINE_CPUFLAG_SSE2
 	case RTE_HASH_COMPARE_SSE:
 		/* Compare the first 4 signatures in the bucket */
+#ifndef _WIN64
 		*prim_hash_matches = _mm_movemask_ps((__m128)_mm_cmpeq_epi16(
 				_mm_load_si128(
 					(__m128i const *)prim_bkt->sig_current),
@@ -965,6 +966,25 @@ compare_signatures(uint32_t *prim_hash_matches, uint32_t *sec_hash_matches,
 				_mm_load_si128(
 					(__m128i const *)&sec_bkt->sig_current[4]),
 				_mm_set1_epi32(sec_hash)))) << 4;
+#else
+		*prim_hash_matches = _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpeq_epi16(
+				_mm_load_si128(
+				(__m128i const *)prim_bkt->sig_current),
+				_mm_set1_epi32(prim_hash))));
+		*prim_hash_matches |= (_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpeq_epi16(
+				_mm_load_si128(
+				(__m128i const *)&prim_bkt->sig_current[4]),
+				_mm_set1_epi32(prim_hash))))) << 4;
+		/* Compare the first 4 signatures in the bucket */
+		*sec_hash_matches = _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpeq_epi16(
+				_mm_load_si128(
+				(__m128i const *)sec_bkt->sig_current),
+				_mm_set1_epi32(sec_hash))));
+		*sec_hash_matches |= (_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpeq_epi16(
+				_mm_load_si128(
+				(__m128i const *)&sec_bkt->sig_current[4]),
+				_mm_set1_epi32(sec_hash))))) << 4;
+#endif
 		break;
 #endif
 	default:

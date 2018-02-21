@@ -34,6 +34,9 @@
 /* rte_cuckoo_hash_x86.h
  * This file holds all x86 specific Cuckoo Hash functions
  */
+#ifdef _WIN64
+#include <rte_rtm.h>
+#endif
 
 /* Only tries to insert at one bucket (@prim_bkt) without trying to push
  * buckets around

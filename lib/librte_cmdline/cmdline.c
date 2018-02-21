@@ -65,7 +65,9 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <fcntl.h>
+#ifndef _WIN64
 #include <poll.h>
+#endif
 #include <errno.h>
 #include <termios.h>
 #include <netinet/in.h>
@@ -256,6 +258,7 @@ cmdline_quit(struct cmdline *cl)
 	rdline_quit(&cl->rdl);
 }
 
+#ifndef _WIN64
 int
 cmdline_poll(struct cmdline *cl)
 {
@@ -289,6 +292,7 @@ cmdline_poll(struct cmdline *cl)
 
 	return cl->rdl.status;
 }
+#endif
 
 void
 cmdline_interact(struct cmdline *cl)

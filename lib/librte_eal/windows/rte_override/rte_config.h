@@ -1,0 +1,133 @@
+/*-
+*   BSD LICENSE
+*
+*   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
+*   All rights reserved.
+*
+*   Redistribution and use in source and binary forms, with or without
+*   modification, are permitted provided that the following conditions
+*   are met:
+*
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in
+*       the documentation and/or other materials provided with the
+*       distribution.
+*     * Neither the name of Intel Corporation nor the names of its
+*       contributors may be used to endorse or promote products derived
+*       from this software without specific prior written permission.
+*
+*   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+*   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+*   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+*   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+*   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+*   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+*   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+*   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+*   OF THIS SOFTWARE, EVEN I ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+#define RTE_EXEC_ENV "windowsapp"
+#define RTE_EXEC_ENV_WINDOWSAPP 1
+#define RTE_MACHINE "native"
+#define RTE_ARCH "x86_64"
+#define RTE_ARCH_X86_64 1
+#define RTE_TOOLCHAIN "icc"
+#define RTE_TOOLCHAIN_ICC 1
+#undef RTE_LIBC
+#undef RTE_LIBC_NEWLIB_SRC
+#undef RTE_LIBC_NEWLIB_BIN
+#undef RTE_LIBC_NETINCS
+#undef RTE_LIBGLOSS
+#define RTE_LIBRTE_EAL 1
+#define RTE_MAX_LCORE 32
+#define RTE_MAX_NUMA_NODES 8
+#define RTE_MAX_MEMSEG 32
+#define RTE_MAX_MEMZONE 512
+#define RTE_MAX_TAILQ 32
+#define RTE_LOG_LEVEL 8
+#define RTE_LOG_HISTORY 256
+#undef RTE_LIBEAL_USE_HPET
+#undef RTE_EAL_ALLOW_INV_SOCKET_ID
+#undef RTE_EAL_ALWAYS_PANIC_ON_ERROR
+#undef RTE_EAL_UNBIND_PORTS
+#define RTE_LIBRTE_EAL_LINUXAPP 1
+#undef RTE_LIBRTE_EAL_BAREMETAL
+#define RTE_LIBRTE_ETHER 1
+#undef RTE_LIBRTE_ETHDEV_DEBUG
+#define RTE_MAX_ETHPORTS 32
+#undef RTE_LIBRTE_IEEE1588
+#define RTE_ETHDEV_QUEUE_STAT_CNTRS 16
+#define RTE_LIBRTE_EM_PMD 1
+#define RTE_LIBRTE_IGB_PMD 1
+#undef RTE_LIBRTE_E1000_DEBUG_INIT
+#undef RTE_LIBRTE_E1000_DEBUG_RX
+#undef RTE_LIBRTE_E1000_DEBUG_TX
+#undef RTE_LIBRTE_E1000_DEBUG_TX_FREE
+#undef RTE_LIBRTE_E1000_DEBUG_DRIVER
+#undef RTE_LIBRTE_E1000_PF_DISABLE_STRIP_CRC
+#define RTE_LIBRTE_IXGBE_PMD 1
+#undef RTE_LIBRTE_IXGBE_DEBUG_INIT
+#undef RTE_LIBRTE_IXGBE_DEBUG_RX
+#undef RTE_LIBRTE_IXGBE_DEBUG_TX
+#undef RTE_LIBRTE_IXGBE_DEBUG_TX_FREE
+#undef RTE_LIBRTE_IXGBE_DEBUG_DRIVER
+#undef RTE_LIBRTE_IXGBE_PF_DISABLE_STRIP_CRC
+#define RTE_PMD_PACKET_PREFETCH 1
+#define RTE_LIBRTE_RING 1
+#undef RTE_LIBRTE_RING_DEBUG
+#define RTE_LIBRTE_MEMPOOL 1
+#define RTE_MEMPOOL_CACHE_MAX_SIZE 512
+#undef RTE_LIBRTE_MEMPOOL_DEBUG
+#define RTE_LIBRTE_MBUF 1
+#undef RTE_LIBRTE_MBUF_DEBUG
+#undef RTE_MBUF_SCATTER_GATHER 1
+#undef RTE_MBUF_REFCNT_ATOMIC 1
+#define RTE_PKTMBUF_HEADROOM 128
+#define RTE_LIBRTE_TIMER 1
+#undef RTE_LIBRTE_TIMER_DEBUG
+#define RTE_LIBRTE_MALLOC 1
+#undef RTE_LIBRTE_MALLOC_DEBUG
+#define RTE_MALLOC_MEMZONE_SIZE 11M
+#define RTE_LIBRTE_CMDLINE 1
+#undef RTE_LIBRTE_CMDLINE_DEBUG
+#define RTE_LIBRTE_HASH 1
+#undef RTE_LIBRTE_HASH_DEBUG
+#undef RTE_LIBRTE_HASH_USE_MEMZONE
+#define RTE_LIBRTE_LPM 1
+#undef RTE_LIBRTE_LPM_DEBUG
+#define RTE_LIBRTE_NET 1
+#undef RTE_INSECURE_FUNCTION_WARNING
+#define RTE_APP_TEST 1
+#define RTE_APP_CHKINCS 1
+#define RTE_TEST_PMD 1
+#undef RTE_TEST_PMD_RECORD_CORE_CYCLES
+#undef RTE_TEST_PMD_RECORD_BURST_STATS
+//#define RTE_WINDOWS_ENABLE_RAWSOCK 1
+//#define RTE_WINDOWS_RAWSOCK_NUM	1
+//#undef RTE_WINDOWS_ENABLE_FAKE_IXGBE
+#undef RTE_WINDOWS_ENABLE_PCAP_FILE
+#define RTE_WINDOWS_ENABLE_PCAP_NET 1
+#undef RTE_WINDOWS_ENABLE_FAKE_NIC
+#define RTE_PMD_RING_MAX_RX_RINGS 8
+#define RTE_PMD_RING_MAX_TX_RINGS 8
+#define RTE_EAL_PMD_PATH ""
+#define RTE_SCHED_PORT_N_GRINDERS 8
+#define RTE_CACHE_LINE_SIZE 64
+#define RTE_CACHE_LINE_MIN_SIZE 64
+#define RTE_CRYPTO_MAX_DEVS 16
+#define RTE_MAX_QUEUES_PER_PORT		128
+
+/* rte_mbuf definitions from config */
+#define RTE_MBUF_DEFAULT_MEMPOOL_OPS	("ring_mp_mc")
+
+/* i40e definitions from config */
+#define RTE_LIBRTE_I40E_QUEUE_NUM_PER_PF	64
+#define RTE_LIBRTE_I40E_QUEUE_NUM_PER_VF	4
+#define RTE_LIBRTE_I40E_QUEUE_NUM_PER_VM	4
+#define RTE_LIBRTE_I40E_ITR_INTERVAL		(-1)
+

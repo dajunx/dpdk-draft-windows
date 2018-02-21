@@ -44,6 +44,11 @@
 #include <rte_launch.h>
 #include <rte_per_lcore.h>
 #include <rte_lcore.h>
+
+#ifdef _WIN64
+#undef typeof
+#define typeof(x) uintptr_t
+#endif
 #include <rte_common.h>
 #include <rte_string_fns.h>
 #include <rte_spinlock.h>
@@ -80,11 +85,13 @@ check_hugepage_sz(unsigned flags, uint64_t hugepage_sz)
 	case RTE_PGSIZE_1G:
 		check_flag = RTE_MEMZONE_1GB;
 		break;
+#ifndef _WIN64
 	case RTE_PGSIZE_4G:
 		check_flag = RTE_MEMZONE_4GB;
 		break;
 	case RTE_PGSIZE_16G:
 		check_flag = RTE_MEMZONE_16GB;
+#endif
 	}
 
 	return check_flag & flags;

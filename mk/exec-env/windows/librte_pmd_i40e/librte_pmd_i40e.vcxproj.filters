@@ -1,0 +1,186 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\windows override">
+      <UniqueIdentifier>{1deb2987-1a3d-4449-94d1-66950716e0db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\base">
+      <UniqueIdentifier>{20a0182d-0b32-4ef5-b4bd-99308a0393d4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_ethdev.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_common.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_adminq.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_lan_hmc.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_nvm.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_pf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_hmc.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_fdir.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_diag.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_flow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_tm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\rte_pmd_i40e.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_dcb.c">
+      <Filter>Source Files\base</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_ethdev.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_logs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_eth_ctrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_adminq_cmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_osdep.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_register.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_type.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_prototype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_pf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_alloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_hmc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_lan_hmc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_status.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_adminq.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memcpy.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_spinlock.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_common.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_cycles.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_byteorder.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\generic\rte_cycles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\generic\rte_spinlock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\generic\rte_byteorder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_pci.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_pci.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_memzone.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_malloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ether.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_pci_dev_ids.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_dev.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_diag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_devids.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_regs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\rte_pmd_i40e.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\i40e_dcb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\base\virtchnl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

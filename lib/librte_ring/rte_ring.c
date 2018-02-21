@@ -71,6 +71,10 @@
 #include <errno.h>
 #include <sys/queue.h>
 
+#ifdef _WIN64
+#undef typeof
+#define typeof(x) ssize_t
+#endif
 #include <rte_common.h>
 #include <rte_log.h>
 #include <rte_memory.h>

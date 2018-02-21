@@ -123,6 +123,9 @@ uint32_t hash_entry_number = HASH_ENTRY_NUMBER_DEFAULT;
 
 struct lcore_conf lcore_conf[RTE_MAX_LCORE];
 
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct lcore_params {
 	uint16_t port_id;
 	uint8_t queue_id;
@@ -160,7 +163,11 @@ static struct rte_eth_conf port_conf = {
 	.rx_adv_conf = {
 		.rss_conf = {
 			.rss_key = NULL,
+#ifndef _WIN64
 			.rss_hf = ETH_RSS_IP,
+#else
+			.rss_hf = ETH_RSS_IP | ETH_RSS_TCP | ETH_RSS_UDP,
+#endif
 		},
 	},
 	.txmode = {

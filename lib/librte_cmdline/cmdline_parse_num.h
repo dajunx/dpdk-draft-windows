@@ -67,6 +67,7 @@
 extern "C" {
 #endif
 
+#ifndef _WIN64
 enum cmdline_numtype {
 	UINT8 = 0,
 	UINT16,
@@ -76,7 +77,20 @@ enum cmdline_numtype {
 	INT16,
 	INT32,
 	INT64
+    };
+#else
+/* The above enum values are unfortunately named the same as Windows defines */
+enum cmdline_numtype {
+	UINT8_T = 0,
+	UINT16_T,
+	UINT32_T,
+	UINT64_T,
+	INT8_T,
+	INT16_T,
+	INT32_T,
+	INT64_T
 };
+#endif
 
 struct cmdline_token_num_data {
 	enum cmdline_numtype type;

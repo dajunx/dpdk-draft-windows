@@ -58,6 +58,7 @@
 
 extern struct rte_pci_bus rte_pci_bus;
 
+#ifndef _WIN64
 #define SYSFS_PCI_DEVICES "/sys/bus/pci/devices"
 
 const char *pci_get_sysfs_path(void)
@@ -70,6 +71,7 @@ const char *pci_get_sysfs_path(void)
 
 	return path;
 }
+#endif
 
 static struct rte_devargs *pci_devargs_lookup(struct rte_pci_device *dev)
 {

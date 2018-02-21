@@ -83,6 +83,9 @@ extern "C" {
  * the next cache line to worker 0, we pad this out to three cache lines.
  * Only 64-bits of the memory is actually used though.
  */
+#ifdef _WIN64
+    RTE_CACHE_ALIGN
+#endif
 union rte_distributor_buffer_v20 {
 	volatile int64_t bufptr64;
 	char pad[RTE_CACHE_LINE_SIZE*3];
@@ -94,10 +97,17 @@ union rte_distributor_buffer_v20 {
  */
 #define RTE_DIST_BURST_SIZE 8
 
+#ifdef _WIN64
+    RTE_CACHE_ALIGN
+#endif
 struct rte_distributor_backlog {
 	unsigned int start;
 	unsigned int count;
+#ifndef _WIN64
 	int64_t pkts[RTE_DIST_BURST_SIZE] __rte_cache_aligned;
+#else
+	RTE_CACHE_ALIGN int64_t pkts[RTE_DIST_BURST_SIZE];
+#endif
 	uint16_t *tags; /* will point to second cacheline of inflights */
 } __rte_cache_aligned;
 
@@ -145,6 +155,7 @@ enum rte_distributor_match_function {
  * There is a separate cacheline for returns in the burst API.
  */
 struct rte_distributor_buffer {
+#ifndef _WIN64
 	volatile int64_t bufptr64[RTE_DIST_BURST_SIZE]
 		__rte_cache_aligned; /* <= outgoing to worker */
 
@@ -156,6 +167,19 @@ struct rte_distributor_buffer {
 	int64_t pad2 __rte_cache_aligned;    /* <= one cache line  */
 
 	int count __rte_cache_aligned;       /* <= number of current mbufs */
+#else
+	RTE_CACHE_ALIGN volatile int64_t bufptr64[RTE_DIST_BURST_SIZE];
+					    /* <= outgoing to worker */
+
+	RTE_CACHE_ALIGN int64_t pad1;    /* <= one cache line  */
+
+	RTE_CACHE_ALIGN volatile int64_t retptr64[RTE_DIST_BURST_SIZE];
+					/* <= incoming from worker */
+
+	RTE_CACHE_ALIGN int64_t pad2;    /* <= one cache line  */
+
+	RTE_CACHE_ALIGN int count;       /* <= number of current mbufs */
+#endif
 };
 
 struct rte_distributor {
@@ -170,12 +194,16 @@ struct rte_distributor {
 	 * on the worker core. Second cache line are the backlog
 	 * that are going to go to the worker core.
 	 */
+#ifndef _WIN64
 	uint16_t in_flight_tags[RTE_DISTRIB_MAX_WORKERS][RTE_DIST_BURST_SIZE*2]
 			__rte_cache_aligned;
 
 	struct rte_distributor_backlog backlog[RTE_DISTRIB_MAX_WORKERS]
 			__rte_cache_aligned;
-
+#else
+	RTE_CACHE_ALIGN uint16_t in_flight_tags[RTE_DISTRIB_MAX_WORKERS][RTE_DIST_BURST_SIZE * 2];
+	RTE_CACHE_ALIGN struct rte_distributor_backlog backlog[RTE_DISTRIB_MAX_WORKERS];
+#endif
 	struct rte_distributor_buffer bufs[RTE_DISTRIB_MAX_WORKERS];
 
 	struct rte_distributor_returned_pkts returns;

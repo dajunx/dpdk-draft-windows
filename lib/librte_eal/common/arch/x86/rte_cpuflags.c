@@ -36,7 +36,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
+#ifndef _WIN64
 #include <cpuid.h>
+#endif
 
 enum cpu_register_t {
 	RTE_REG_EAX = 0,
@@ -157,6 +159,62 @@ const struct feature_entry rte_cpu_feature_table[] = {
 	FEAT_DEF(INVTSC, 0x80000007, 0, RTE_REG_EDX,  8)
 };
 
+#ifdef _WIN64
+/*
+ * Execute CPUID instruction and get contents of a specific register
+ *
+ * This function, when compiled with GCC, will generate architecture-neutral
+ * code, as per GCC manual.
+ */
+static void
+rte_cpu_get_features(uint32_t leaf, uint32_t subleaf, cpuid_registers_t out)
+{
+#if defined(__i386__) && defined(__PIC__)
+	/* %ebx is a forbidden register if we compile with -fPIC or -fPIE */
+	asm volatile("movl %%ebx,%0 ; cpuid ; xchgl %%ebx,%0"
+		 : "=r" (out[RTE_REG_EBX]),
+		   "=a" (out[RTE_REG_EAX]),
+		   "=c" (out[RTE_REG_ECX]),
+		   "=d" (out[RTE_REG_EDX])
+		 : "a" (leaf), "c" (subleaf));
+#else
+	asm volatile("cpuid"
+		 : "=a" (out[RTE_REG_EAX]),
+		   "=b" (out[RTE_REG_EBX]),
+		   "=c" (out[RTE_REG_ECX]),
+		   "=d" (out[RTE_REG_EDX])
+		 : "a" (leaf), "c" (subleaf));
+#endif
+}
+
+int
+rte_cpu_get_flag_enabled(enum rte_cpu_flag_t feature)
+{
+	const struct feature_entry *feat;
+	cpuid_registers_t regs;
+
+	if (feature >= RTE_CPUFLAG_NUMFLAGS)
+		/* Flag does not match anything in the feature tables */
+		return -ENOENT;
+
+	feat = &rte_cpu_feature_table[feature];
+
+	if (!feat->leaf)
+		/* This entry in the table wasn't filled out! */
+		return -EFAULT;
+
+	rte_cpu_get_features(feat->leaf & 0xffff0000, 0, regs);
+	if (((regs[RTE_REG_EAX] ^ feat->leaf) & 0xffff0000) ||
+	      regs[RTE_REG_EAX] < feat->leaf)
+		return 0;
+
+	/* get the cpuid leaf containing the desired feature */
+	rte_cpu_get_features(feat->leaf, feat->subleaf, regs);
+
+	/* check if the feature is enabled */
+	return (regs[feat->reg] >> feat->bit) & 1;
+}
+#else
 int
 rte_cpu_get_flag_enabled(enum rte_cpu_flag_t feature)
 {
@@ -186,6 +244,7 @@ rte_cpu_get_flag_enabled(enum rte_cpu_flag_t feature)
 	/* check if the feature is enabled */
 	return (regs[feat->reg] >> feat->bit) & 1;
 }
+#endif
 
 const char *
 rte_cpu_get_flag_name(enum rte_cpu_flag_t feature)

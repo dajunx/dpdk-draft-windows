@@ -45,6 +45,9 @@
 /**
  * Structure to hold malloc heap
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct malloc_heap {
 	rte_spinlock_t lock;
 	LIST_HEAD(, malloc_elem) free_head[RTE_HEAP_NUM_FREELISTS];

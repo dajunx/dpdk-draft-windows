@@ -406,7 +406,7 @@ rte_mempool_populate_phys(struct rte_mempool *mp, char *vaddr,
 	memhdr->len = len;
 	memhdr->free_cb = free_cb;
 	memhdr->opaque = opaque;
-
+#ifndef _WIN64
 	if (mp->flags & MEMPOOL_F_CAPA_BLK_ALIGNED_OBJECTS)
 		/* align object start address to a multiple of total_elt_sz */
 		off = total_elt_sz - ((uintptr_t)vaddr % total_elt_sz);
@@ -414,6 +414,15 @@ rte_mempool_populate_phys(struct rte_mempool *mp, char *vaddr,
 		off = RTE_PTR_ALIGN_CEIL(vaddr, 8) - vaddr;
 	else
 		off = RTE_PTR_ALIGN_CEIL(vaddr, RTE_CACHE_LINE_SIZE) - vaddr;
+#else
+	if (mp->flags & MEMPOOL_F_CAPA_BLK_ALIGNED_OBJECTS)
+		/* align object start address to a multiple of total_elt_sz */
+		off = total_elt_sz - ((uintptr_t)vaddr % total_elt_sz);
+	if (mp->flags & MEMPOOL_F_NO_CACHE_ALIGN)
+		off = (size_t)(RTE_PTR_ALIGN_CEIL(vaddr, 8)) - (size_t)vaddr;
+	else
+		off = (size_t)(RTE_PTR_ALIGN_CEIL(vaddr, RTE_CACHE_LINE_SIZE)) - (size_t)vaddr;
+#endif
 
 	while (off + total_elt_sz <= len && mp->populated_size < mp->size) {
 		off += mp->header_size;

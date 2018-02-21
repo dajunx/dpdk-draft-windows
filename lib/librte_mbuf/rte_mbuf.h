@@ -411,6 +411,7 @@ int rte_get_tx_ol_flag_list(uint64_t mask, char *buf, size_t buflen);
 
 /* define a set of marker types that can be used to refer to set points in the
  * mbuf */
+#ifndef _WIN64
 __extension__
 typedef void    *MARKER[0];   /**< generic marker for a point in a structure */
 __extension__
@@ -418,12 +419,18 @@ typedef uint8_t  MARKER8[0];  /**< generic marker with 1B alignment */
 __extension__
 typedef uint64_t MARKER64[0]; /**< marker that allows us to overwrite 8 bytes
                                * with a single assignment */
+#endif
 
 /**
  * The generic rte_mbuf, containing a packet mbuf.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mbuf {
+#ifndef _WIN64
 	MARKER cacheline0;
+#endif
 
 	void *buf_addr;           /**< Virtual address of segment buffer. */
 	/**
@@ -432,10 +439,16 @@ struct rte_mbuf {
 	 * same mbuf cacheline0 layout for 32-bit and 64-bit. This makes
 	 * working on vector drivers easier.
 	 */
+#ifndef _WIN64
 	phys_addr_t buf_physaddr __rte_aligned(sizeof(phys_addr_t));
-
+#else
+	__declspec(align(sizeof(phys_addr_t))) phys_addr_t buf_physaddr;
+#endif
 	/* next 8 bytes are initialised on RX descriptor rearm */
+#ifndef _WIN64
 	MARKER64 rearm_data;
+#endif
+
 	uint16_t data_off;
 
 	/**
@@ -459,8 +472,10 @@ struct rte_mbuf {
 
 	uint64_t ol_flags;        /**< Offload features. */
 
+#ifndef _WIN64
 	/* remaining bytes are set on RX when pulling packet from descriptor */
 	MARKER rx_descriptor_fields1;
+#endif
 
 	/*
 	 * The packet type, which is the combination of outer/inner L2, L3, L4
@@ -534,8 +549,10 @@ struct rte_mbuf {
 	 */
 	uint64_t timestamp;
 
+#ifndef _WIN64
 	/* second cache line - fields only used in slow path or on TX */
 	MARKER cacheline1 __rte_cache_min_aligned;
+#endif
 
 	RTE_STD_C11
 	union {
@@ -593,7 +610,9 @@ struct rte_mbuf {
 static inline void
 rte_mbuf_prefetch_part1(struct rte_mbuf *m)
 {
+#ifndef _WIN64
 	rte_prefetch0(&m->cacheline0);
+#endif
 }
 
 /**
@@ -611,7 +630,9 @@ static inline void
 rte_mbuf_prefetch_part2(struct rte_mbuf *m)
 {
 #if RTE_CACHE_LINE_SIZE == 64
+#ifndef _WIN64
 	rte_prefetch0(&m->cacheline1);
+#endif
 #else
 	RTE_SET_USED(m);
 #endif

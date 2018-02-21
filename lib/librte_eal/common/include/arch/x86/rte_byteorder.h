@@ -54,10 +54,16 @@ extern "C" {
 static inline uint16_t rte_arch_bswap16(uint16_t _x)
 {
 	register uint16_t x = _x;
+#ifndef _WIN64
 	asm volatile ("xchgb %b[x1],%h[x2]"
 		      : [x1] "=Q" (x)
 		      : [x2] "0" (x)
 		      );
+#else
+	__asm {
+	    /* Add appropriate __asm here */
+	}
+#endif
 	return x;
 }
 
@@ -69,9 +75,17 @@ static inline uint16_t rte_arch_bswap16(uint16_t _x)
 static inline uint32_t rte_arch_bswap32(uint32_t _x)
 {
 	register uint32_t x = _x;
+#ifndef _WIN64
 	asm volatile ("bswap %[x]"
 		      : [x] "+r" (x)
 		      );
+#else
+	__asm {
+	    mov     eax, x
+	    bswap   eax
+	    mov     x, eax
+	}
+#endif
 	return x;
 }
 

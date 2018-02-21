@@ -91,6 +91,9 @@ extern "C" {
 /**
  * A structure that stores the mempool statistics (per-lcore).
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mempool_debug_stats {
 	uint64_t put_bulk;         /**< Number of puts. */
 	uint64_t put_objs;         /**< Number of objects successfully put. */
@@ -101,9 +104,17 @@ struct rte_mempool_debug_stats {
 } __rte_cache_aligned;
 #endif
 
+#ifdef _WIN64
+#undef typeof
+#define typeof(x) uintptr_t
+#endif
+
 /**
  * A structure that stores a per-core object cache.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mempool_cache {
 	uint32_t size;	      /**< Size of the cache */
 	uint32_t flushthresh; /**< Threshold before we flush excess elements */
@@ -212,6 +223,9 @@ struct rte_mempool_memhdr {
 /**
  * The RTE mempool structure.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mempool {
 	/*
 	 * Note: this field kept the RTE_MEMZONE_NAMESIZE size due to ABI
@@ -420,6 +434,9 @@ typedef int (*rte_mempool_ops_register_memory_area_t)
 (const struct rte_mempool *mp, char *vaddr, phys_addr_t paddr, size_t len);
 
 /** Structure defining mempool operations structure */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mempool_ops {
 	char name[RTE_MEMPOOL_OPS_NAMESIZE]; /**< Name of mempool ops struct. */
 	rte_mempool_alloc_t alloc;       /**< Allocate private data. */
@@ -448,6 +465,9 @@ struct rte_mempool_ops {
  * any function pointers stored directly in the mempool struct would not be.
  * This results in us simply having "ops_index" in the mempool struct.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_mempool_ops_table {
 	rte_spinlock_t sl;     /**< Spinlock for add/delete. */
 	uint32_t num_ops;      /**< Number of used ops structs in the table. */

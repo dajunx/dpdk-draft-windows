@@ -194,12 +194,21 @@ struct rte_lpm_v20 {
 	struct rte_lpm_rule_info rule_info[RTE_LPM_MAX_DEPTH]; /**< Rule info table. */
 
 	/* LPM Tables. */
+#ifndef _WIN64
 	struct rte_lpm_tbl_entry_v20 tbl24[RTE_LPM_TBL24_NUM_ENTRIES]
 			__rte_cache_aligned; /**< LPM tbl24 table. */
 	struct rte_lpm_tbl_entry_v20 tbl8[RTE_LPM_TBL8_NUM_ENTRIES]
 			__rte_cache_aligned; /**< LPM tbl8 table. */
 	struct rte_lpm_rule_v20 rules_tbl[]
 			__rte_cache_aligned; /**< LPM rules. */
+#else
+	RTE_CACHE_ALIGN struct rte_lpm_tbl_entry_v20 tbl24[RTE_LPM_TBL24_NUM_ENTRIES];
+					/**< LPM tbl24 table. */
+	RTE_CACHE_ALIGN struct rte_lpm_tbl_entry_v20 tbl8[RTE_LPM_TBL8_NUM_ENTRIES];
+					/**< LPM tbl8 table. */
+	RTE_CACHE_ALIGN struct rte_lpm_rule_v20 rules_tbl[];
+					/**< LPM rules. */
+#endif
 };
 
 struct rte_lpm {
@@ -210,8 +219,13 @@ struct rte_lpm {
 	struct rte_lpm_rule_info rule_info[RTE_LPM_MAX_DEPTH]; /**< Rule info table. */
 
 	/* LPM Tables. */
+#ifndef _WIN64
 	struct rte_lpm_tbl_entry tbl24[RTE_LPM_TBL24_NUM_ENTRIES]
 			__rte_cache_aligned; /**< LPM tbl24 table. */
+#else
+	RTE_CACHE_ALIGN struct rte_lpm_tbl_entry tbl24[RTE_LPM_TBL24_NUM_ENTRIES];
+							/**< LPM tbl24 table. */
+#endif
 	struct rte_lpm_tbl_entry *tbl8; /**< LPM tbl8 table. */
 	struct rte_lpm_rule *rules_tbl; /**< LPM rules. */
 };

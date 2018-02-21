@@ -59,10 +59,12 @@
 #define I40E_TX_MAX_SEG     UINT8_MAX
 #define I40E_TX_MAX_MTU_SEG 8
 
+#ifndef _WIN64
 #undef container_of
 #define container_of(ptr, type, member) ({ \
 		typeof(((type *)0)->member)(*__mptr) = (ptr); \
 		(type *)((char *)__mptr - offsetof(type, member)); })
+#endif
 
 #define I40E_TD_CMD (I40E_TX_DESC_CMD_ICRC |\
 		     I40E_TX_DESC_CMD_EOP)
@@ -264,7 +266,11 @@ void i40e_set_default_pctype_table(struct rte_eth_dev *dev);
 static inline uint32_t
 i40e_get_default_pkt_type(uint8_t ptype)
 {
+#ifndef _WIN64
 	static const uint32_t type_table[UINT8_MAX + 1] __rte_cache_aligned = {
+#else
+	RTE_CACHE_ALIGN static const uint32_t type_table[UINT8_MAX + 1]  = {
+#endif
 		/* L2 types */
 		/* [0] reserved */
 		[1] = RTE_PTYPE_L2_ETHER,

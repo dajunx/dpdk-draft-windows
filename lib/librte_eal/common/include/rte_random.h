@@ -47,6 +47,10 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef _WIN64
+#include "rand48.h"
+#endif
+
 /**
  * Seed the pseudo-random generator.
  *

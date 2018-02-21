@@ -58,7 +58,7 @@ rte_eal_parse_devargs_str(const char *devargs_str,
 	if ((devargs_str) == NULL || (drvname) == NULL || (drvargs == NULL))
 		return -1;
 
-	*drvname = strdup(devargs_str);
+	*drvname = _strdup(devargs_str);
 	if (*drvname == NULL)
 		return -1;
 
@@ -66,9 +66,9 @@ rte_eal_parse_devargs_str(const char *devargs_str,
 	sep = strchr(*drvname, ',');
 	if (sep != NULL) {
 		sep[0] = '\0';
-		*drvargs = strdup(sep + 1);
+		*drvargs = _strdup(sep + 1);
 	} else {
-		*drvargs = strdup("");
+		*drvargs = _strdup("");
 	}
 
 	if (*drvargs == NULL) {

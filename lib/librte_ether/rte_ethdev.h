@@ -258,6 +258,7 @@ struct rte_eth_stats {
 /**
  * A structure used to retrieve link-level information of an Ethernet port.
  */
+#ifndef _WIN64
 __extension__
 struct rte_eth_link {
 	uint32_t link_speed;        /**< ETH_SPEED_NUM_ */
@@ -265,6 +266,15 @@ struct rte_eth_link {
 	uint16_t link_autoneg : 1;  /**< ETH_LINK_SPEED_[AUTONEG/FIXED] */
 	uint16_t link_status  : 1;  /**< ETH_LINK_[DOWN/UP] */
 } __attribute__((aligned(8)));      /**< aligned for atomic64 read/write */
+#else
+__declspec(align(8))              /**< aligned to 64 bits for atomic64 read/write */
+struct rte_eth_link {
+	uint32_t link_speed;        /**< ETH_SPEED_NUM_ */
+	uint16_t link_duplex  : 1;  /**< ETH_LINK_[HALF/FULL]_DUPLEX */
+	uint16_t link_autoneg : 1;  /**< ETH_LINK_SPEED_[AUTONEG/FIXED] */
+	uint16_t link_status  : 1;  /**< ETH_LINK_[DOWN/UP] */
+};
+#endif
 
 /* Utility constants */
 #define ETH_LINK_HALF_DUPLEX    0 /**< Half-duplex connection. */
@@ -1053,6 +1063,9 @@ struct rte_eth_dev_info {
  * Ethernet device RX queue information structure.
  * Used to retieve information about configured queue.
  */
+#ifdef _WIN64
+RTE_CACHE_MIN_ALIGN
+#endif
 struct rte_eth_rxq_info {
 	struct rte_mempool *mp;     /**< mempool used by that queue. */
 	struct rte_eth_rxconf conf; /**< queue config parameters. */
@@ -1064,6 +1077,9 @@ struct rte_eth_rxq_info {
  * Ethernet device TX queue information structure.
  * Used to retieve information about configured queue.
  */
+#ifdef _WIN64
+RTE_CACHE_MIN_ALIGN
+#endif
 struct rte_eth_txq_info {
 	struct rte_eth_txconf conf; /**< queue config parameters. */
 	uint16_t nb_desc;           /**< configured number of TXDs. */
@@ -1723,6 +1739,9 @@ enum rte_eth_dev_state {
  * memory. This split allows the function pointer and driver data to be per-
  * process, while the actual configuration data for the device is shared.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_eth_dev {
 	eth_rx_burst_t rx_pkt_burst; /**< Pointer to PMD receive function. */
 	eth_tx_burst_t tx_pkt_burst; /**< Pointer to PMD transmit function. */

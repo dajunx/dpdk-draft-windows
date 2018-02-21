@@ -1,0 +1,6 @@
+#pragma once
+
+#include "..\..\common\include\rte_log.h"
+
+#undef RTE_LOG
+#define RTE_LOG(l, t, ...)	printf (##__VA_ARGS__)

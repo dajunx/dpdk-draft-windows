@@ -40,6 +40,11 @@
 #include <errno.h>
 #include <sys/queue.h>
 
+#ifdef _WIN64
+#undef typeof
+#define typeof(x) size_t
+#include <rte_common.h>
+#endif
 #include <rte_log.h>
 #include <rte_memory.h>
 #include <rte_memzone.h>

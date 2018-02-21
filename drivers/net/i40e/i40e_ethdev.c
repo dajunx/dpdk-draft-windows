@@ -438,7 +438,9 @@ static const struct rte_pci_id pci_id_i40e_map[] = {
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T4) },
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_B) },
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_SFP28) },
+#ifdef X722_A0_SUPPORT
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_A0) },
+#endif
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_X722) },
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_X722) },
 	{ RTE_PCI_DEVICE(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_X722) },
@@ -1293,6 +1295,7 @@ eth_i40e_dev_init(struct rte_eth_dev *dev)
 	ether_addr_copy((struct ether_addr *)hw->mac.perm_addr,
 					&dev->data->mac_addrs[0]);
 
+#ifndef _WIN64
 	/* Init dcb to sw mode by default */
 	ret = i40e_dcb_init_configure(dev, TRUE);
 	if (ret != I40E_SUCCESS) {
@@ -1301,7 +1304,7 @@ eth_i40e_dev_init(struct rte_eth_dev *dev)
 	}
 	/* Update HW struct after DCB configuration */
 	i40e_get_cap(hw);
-
+#endif
 	/* initialize pf host driver to setup SRIOV resource if applicable */
 	i40e_pf_host_init(dev);
 
@@ -11366,8 +11369,11 @@ i40e_cloud_filter_qinq_create(struct i40e_pf *pf)
 	return ret;
 }
 
+#ifndef _WIN64
 RTE_INIT(i40e_init_log);
-static void
+static
+#endif
+void
 i40e_init_log(void)
 {
 	i40e_logtype_init = rte_log_register("pmd.i40e.init");

@@ -37,7 +37,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifndef _WIN64
 #include <regex.h>
+#endif
 
 #include <rte_eal.h>
 #include <rte_log.h>
@@ -122,6 +124,7 @@ rte_log_set_level(uint32_t type, uint32_t level)
 int
 rte_log_set_level_regexp(const char *pattern, uint32_t level)
 {
+#ifndef _WIN64
 	regex_t r;
 	size_t i;
 
@@ -138,7 +141,7 @@ rte_log_set_level_regexp(const char *pattern, uint32_t level)
 				NULL, 0) == 0)
 			rte_logs.dynamic_types[i].loglevel = level;
 	}
-
+#endif
 	return 0;
 }
 
@@ -249,9 +252,12 @@ static const struct logtype logtype_strings[] = {
 	{RTE_LOGTYPE_USER8,      "user8"}
 };
 
+#ifndef _WIN64
 /* Logging should be first initialzer (before drivers and bus) */
 RTE_INIT_PRIO(rte_log_init, 101);
-static void
+static
+#endif
+void
 rte_log_init(void)
 {
 	uint32_t i;
