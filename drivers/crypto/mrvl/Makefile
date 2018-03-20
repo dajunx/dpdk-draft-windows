@@ -47,16 +47,18 @@ LIB = librte_pmd_mrvl_crypto.a
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -I$(LIBMUSDK_PATH)/include
-CFLAGS += -DMVCONF_ARCH_DMA_ADDR_T_64BIT
+CFLAGS += -DMVCONF_TYPES_PUBLIC
+CFLAGS += -DMVCONF_DMA_PHYS_ADDR_T_PUBLIC
 
 # library version
 LIBABIVER := 1
 
 # versioning export map
-EXPORT_MAP := rte_mrvl_pmd_version.map
+EXPORT_MAP := rte_pmd_mrvl_version.map
 
 # external library dependencies
 LDLIBS += -L$(LIBMUSDK_PATH)/lib -lmusdk
+LDLIBS += -lrte_bus_vdev
 
 # library source files
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_MRVL_CRYPTO) += rte_mrvl_pmd.c

@@ -99,6 +99,7 @@ get_val_securely(const char *string, uint32_t *val)
 	if (len == 0)
 		return -1;
 
+	errno = 0;
 	*val = strtoul(string, &endptr, 0);
 	if (errno != 0 || RTE_PTR_DIFF(endptr, string) != len)
 		return -2;
@@ -368,7 +369,7 @@ mrvl_get_qoscfg(const char *key __rte_unused, const char *path,
 	}
 
 	/* Use the number of ports given as vdev parameters. */
-	for (n = 0; n < mrvl_ports_nb; ++n) {
+	for (n = 0; n < (PP2_NUM_ETH_PPIO * PP2_NUM_PKT_PROC); ++n) {
 		snprintf(sec_name, sizeof(sec_name), "%s %d %s",
 			MRVL_TOK_PORT, n, MRVL_TOK_DEFAULT);
 

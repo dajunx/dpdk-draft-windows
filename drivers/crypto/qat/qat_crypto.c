@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2015-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *	 * Redistributions of source code must retain the above copyright
- *	   notice, this list of conditions and the following disclaimer.
- *	 * Redistributions in binary form must reproduce the above copyright
- *	   notice, this list of conditions and the following disclaimer in
- *	   the documentation and/or other materials provided with the
- *	   distribution.
- *	 * Neither the name of Intel Corporation nor the names of its
- *	   contributors may be used to endorse or promote products derived
- *	   from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2015-2017 Intel Corporation
  */
 
 #include <stdio.h>
@@ -44,7 +15,6 @@
 #include <rte_log.h>
 #include <rte_debug.h>
 #include <rte_memory.h>
-#include <rte_memzone.h>
 #include <rte_tailq.h>
 #include <rte_malloc.h>
 #include <rte_launch.h>
@@ -70,6 +40,10 @@
 #include "adf_transport_access_macros.h"
 
 #define BYTE_LENGTH    8
+/* bpi is only used for partial blocks of DES and AES
+ * so AES block len can be assumed as max len for iv, src and dst
+ */
+#define BPI_MAX_ENCR_IV_LEN ICP_QAT_HW_AES_BLK_SZ
 
 static int
 qat_is_cipher_alg_supported(enum rte_crypto_cipher_algorithm algo,
@@ -122,16 +96,16 @@ bpi_cipher_encrypt(uint8_t *src, uint8_t *dst,
 {
 	EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX *)bpi_ctx;
 	int encrypted_ivlen;
-	uint8_t encrypted_iv[16];
-	int i;
+	uint8_t encrypted_iv[BPI_MAX_ENCR_IV_LEN];
+	uint8_t *encr = encrypted_iv;
 
 	/* ECB method: encrypt the IV, then XOR this with plaintext */
 	if (EVP_EncryptUpdate(ctx, encrypted_iv, &encrypted_ivlen, iv, ivlen)
 								<= 0)
 		goto cipher_encrypt_err;
 
-	for (i = 0; i < srclen; i++)
-		*(dst+i) = *(src+i)^(encrypted_iv[i]);
+	for (; srclen != 0; --srclen, ++dst, ++src, ++encr)
+		*dst = *src ^ *encr;
 
 	return 0;
 
@@ -151,21 +125,21 @@ bpi_cipher_decrypt(uint8_t *src, uint8_t *dst,
 {
 	EVP_CIPHER_CTX *ctx = (EVP_CIPHER_CTX *)bpi_ctx;
 	int encrypted_ivlen;
-	uint8_t encrypted_iv[16];
-	int i;
+	uint8_t encrypted_iv[BPI_MAX_ENCR_IV_LEN];
+	uint8_t *encr = encrypted_iv;
 
 	/* ECB method: encrypt (not decrypt!) the IV, then XOR with plaintext */
 	if (EVP_EncryptUpdate(ctx, encrypted_iv, &encrypted_ivlen, iv, ivlen)
 								<= 0)
 		goto cipher_decrypt_err;
 
-	for (i = 0; i < srclen; i++)
-		*(dst+i) = *(src+i)^(encrypted_iv[i]);
+	for (; srclen != 0; --srclen, ++dst, ++src, ++encr)
+		*dst = *src ^ *encr;
 
 	return 0;
 
 cipher_decrypt_err:
-	PMD_DRV_LOG(ERR, "libcrypto ECB cipher encrypt for BPI IV failed");
+	PMD_DRV_LOG(ERR, "libcrypto ECB cipher decrypt for BPI IV failed");
 	return -EINVAL;
 }
 
@@ -528,7 +502,7 @@ qat_crypto_set_session_parameters(struct rte_cryptodev *dev,
 	PMD_INIT_FUNC_TRACE();
 
 	/* Set context descriptor physical address */
-	session->cd_paddr = rte_mempool_virt2phy(NULL, session) +
+	session->cd_paddr = rte_mempool_virt2iova(session) +
 			offsetof(struct qat_session, cd);
 
 	session->min_qat_dev_gen = QAT_GEN1;
@@ -845,7 +819,7 @@ static inline uint32_t
 qat_bpicipher_preprocess(struct qat_session *ctx,
 				struct rte_crypto_op *op)
 {
-	uint8_t block_len = qat_cipher_get_block_size(ctx->qat_cipher_alg);
+	int block_len = qat_cipher_get_block_size(ctx->qat_cipher_alg);
 	struct rte_crypto_sym_op *sym_op = op->sym;
 	uint8_t last_block_len = block_len > 0 ?
 			sym_op->cipher.data.length % block_len : 0;
@@ -900,7 +874,7 @@ static inline uint32_t
 qat_bpicipher_postprocess(struct qat_session *ctx,
 				struct rte_crypto_op *op)
 {
-	uint8_t block_len = qat_cipher_get_block_size(ctx->qat_cipher_alg);
+	int block_len = qat_cipher_get_block_size(ctx->qat_cipher_alg);
 	struct rte_crypto_sym_op *sym_op = op->sym;
 	uint8_t last_block_len = block_len > 0 ?
 			sym_op->cipher.data.length % block_len : 0;
@@ -1036,10 +1010,10 @@ void rxq_free_desc(struct qat_qp *qp, struct qat_queue *q)
 	void *cur_desc = (uint8_t *)q->base_addr + old_head;
 
 	if (new_head < old_head) {
-		memset(cur_desc, ADF_RING_EMPTY_SIG, max_head - old_head);
-		memset(q->base_addr, ADF_RING_EMPTY_SIG, new_head);
+		memset(cur_desc, ADF_RING_EMPTY_SIG_BYTE, max_head - old_head);
+		memset(q->base_addr, ADF_RING_EMPTY_SIG_BYTE, new_head);
 	} else {
-		memset(cur_desc, ADF_RING_EMPTY_SIG, new_head - old_head);
+		memset(cur_desc, ADF_RING_EMPTY_SIG_BYTE, new_head - old_head);
 	}
 	q->nb_processed_responses = 0;
 	q->csr_head = new_head;
@@ -1120,7 +1094,7 @@ qat_sgl_fill_array(struct rte_mbuf *buf, uint64_t buff_start,
 {
 	int nr = 1;
 
-	uint32_t buf_len = rte_pktmbuf_mtophys(buf) -
+	uint32_t buf_len = rte_pktmbuf_iova(buf) -
 			buff_start + rte_pktmbuf_data_len(buf);
 
 	list->bufers[0].addr = buff_start;
@@ -1144,7 +1118,7 @@ qat_sgl_fill_array(struct rte_mbuf *buf, uint64_t buff_start,
 
 		list->bufers[nr].len = rte_pktmbuf_data_len(buf);
 		list->bufers[nr].resrvd = 0;
-		list->bufers[nr].addr = rte_pktmbuf_mtophys(buf);
+		list->bufers[nr].addr = rte_pktmbuf_iova(buf);
 
 		buf_len += list->bufers[nr].len;
 		buf = buf->next;
@@ -1368,7 +1342,9 @@ qat_write_hw_desc_entry(struct rte_crypto_op *op, uint8_t *out_msg,
 		}
 		min_ofs = auth_ofs;
 
-		auth_param->auth_res_addr = op->sym->auth.digest.phys_addr;
+		if (likely(ctx->qat_hash_alg != ICP_QAT_HW_AUTH_ALGO_NULL))
+			auth_param->auth_res_addr =
+					op->sym->auth.digest.phys_addr;
 
 	}
 
@@ -1377,7 +1353,7 @@ qat_write_hw_desc_entry(struct rte_crypto_op *op, uint8_t *out_msg,
 		 * This address may used for setting AAD physical pointer
 		 * into IV offset from op
 		 */
-		phys_addr_t aad_phys_addr_aead = op->sym->aead.aad.phys_addr;
+		rte_iova_t aad_phys_addr_aead = op->sym->aead.aad.phys_addr;
 		if (ctx->qat_hash_alg ==
 				ICP_QAT_HW_AUTH_ALGO_GALOIS_128 ||
 				ctx->qat_hash_alg ==
@@ -1500,26 +1476,26 @@ qat_write_hw_desc_entry(struct rte_crypto_op *op, uint8_t *out_msg,
 		 * so as not to overwrite data in dest buffer
 		 */
 		src_buf_start =
-			rte_pktmbuf_mtophys_offset(op->sym->m_src, min_ofs);
+			rte_pktmbuf_iova_offset(op->sym->m_src, min_ofs);
 		dst_buf_start =
-			rte_pktmbuf_mtophys_offset(op->sym->m_dst, min_ofs);
+			rte_pktmbuf_iova_offset(op->sym->m_dst, min_ofs);
 
 	} else {
 		/* In-place operation
 		 * Start DMA at nearest aligned address below min_ofs
 		 */
 		src_buf_start =
-			rte_pktmbuf_mtophys_offset(op->sym->m_src, min_ofs)
+			rte_pktmbuf_iova_offset(op->sym->m_src, min_ofs)
 						& QAT_64_BTYE_ALIGN_MASK;
 
-		if (unlikely((rte_pktmbuf_mtophys(op->sym->m_src) -
+		if (unlikely((rte_pktmbuf_iova(op->sym->m_src) -
 					rte_pktmbuf_headroom(op->sym->m_src))
 							> src_buf_start)) {
 			/* alignment has pushed addr ahead of start of mbuf
 			 * so revert and take the performance hit
 			 */
 			src_buf_start =
-				rte_pktmbuf_mtophys_offset(op->sym->m_src,
+				rte_pktmbuf_iova_offset(op->sym->m_src,
 								min_ofs);
 		}
 		dst_buf_start = src_buf_start;
@@ -1527,7 +1503,7 @@ qat_write_hw_desc_entry(struct rte_crypto_op *op, uint8_t *out_msg,
 
 	if (do_cipher || do_aead) {
 		cipher_param->cipher_offset =
-				(uint32_t)rte_pktmbuf_mtophys_offset(
+				(uint32_t)rte_pktmbuf_iova_offset(
 				op->sym->m_src, cipher_ofs) - src_buf_start;
 		cipher_param->cipher_length = cipher_len;
 	} else {
@@ -1536,7 +1512,7 @@ qat_write_hw_desc_entry(struct rte_crypto_op *op, uint8_t *out_msg,
 	}
 
 	if (do_auth || do_aead) {
-		auth_param->auth_off = (uint32_t)rte_pktmbuf_mtophys_offset(
+		auth_param->auth_off = (uint32_t)rte_pktmbuf_iova_offset(
 				op->sym->m_src, auth_ofs) - src_buf_start;
 		auth_param->auth_len = auth_len;
 	} else {

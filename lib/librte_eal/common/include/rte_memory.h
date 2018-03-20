@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #ifndef _RTE_MEMORY_H_
@@ -44,13 +15,12 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include <rte_config.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <rte_common.h>
+#include <rte_config.h>
 
 __extension__
 enum rte_page_sizes {
@@ -94,14 +64,27 @@ enum rte_page_sizes {
  */
 #define __rte_cache_min_aligned __rte_aligned(RTE_CACHE_LINE_MIN_SIZE)
 
-typedef uint64_t phys_addr_t; /**< Physical address definition. */
+typedef uint64_t phys_addr_t; /**< Physical address. */
 #define RTE_BAD_PHYS_ADDR ((phys_addr_t)-1)
+/**
+ * IO virtual address type.
+ * When the physical addressing mode (IOVA as PA) is in use,
+ * the translation from an IO virtual address (IOVA) to a physical address
+ * is a direct mapping, i.e. the same value.
+ * Otherwise, in virtual mode (IOVA as VA), an IOMMU may do the translation.
+ */
+typedef uint64_t rte_iova_t;
+#define RTE_BAD_IOVA ((rte_iova_t)-1)
 
 /**
  * Physical memory segment descriptor.
  */
 struct rte_memseg {
-	phys_addr_t phys_addr;      /**< Start physical address. */
+	RTE_STD_C11
+	union {
+		phys_addr_t phys_addr;  /**< deprecated - Start physical address. */
+		rte_iova_t iova;        /**< Start IO address. */
+	};
 	RTE_STD_C11
 	union {
 		void *addr;         /**< Start virtual address. */
@@ -132,9 +115,19 @@ int rte_mem_lock_page(const void *virt);
  * @param virt
  *   The virtual address.
  * @return
- *   The physical address or RTE_BAD_PHYS_ADDR on error.
+ *   The physical address or RTE_BAD_IOVA on error.
  */
 phys_addr_t rte_mem_virt2phy(const void *virt);
+
+/**
+ * Get IO virtual address of any mapped virtual address in the current process.
+ *
+ * @param virt
+ *   The virtual address.
+ * @return
+ *   The IO address or RTE_BAD_IOVA on error.
+ */
+rte_iova_t rte_mem_virt2iova(const void *virt);
 
 /**
  * Get the layout of the available physical memory.

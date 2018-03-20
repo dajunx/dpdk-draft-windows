@@ -56,7 +56,7 @@
 #include <rte_eal.h>
 #include <rte_alarm.h>
 #include <rte_ether.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_malloc.h>
 #include <rte_random.h>
 #include <rte_dev.h>
@@ -149,7 +149,7 @@ static int map_mbuf(struct rte_mbuf *mbuf, dma_addr_t *addr)
 	struct rte_mbuf *m = mbuf;
 
 	for (; m; m = m->next, addr++) {
-		*addr = m->buf_physaddr + rte_pktmbuf_headroom(m);
+		*addr = m->buf_iova + rte_pktmbuf_headroom(m);
 		if (*addr == 0)
 			goto out_err;
 	}
@@ -423,7 +423,7 @@ static unsigned int refill_fl_usembufs(struct adapter *adap, struct sge_fl *q,
 		mbuf->nb_segs = 1;
 		mbuf->port = rxq->rspq.port_id;
 
-		mapping = (dma_addr_t)RTE_ALIGN(mbuf->buf_physaddr +
+		mapping = (dma_addr_t)RTE_ALIGN(mbuf->buf_iova +
 						mbuf->data_off,
 						adap->sge.fl_align);
 		mapping |= buf_size_idx;
@@ -1318,7 +1318,7 @@ alloc_sw_ring:
 	if (metadata)
 		*(void **)metadata = s;
 
-	*phys = (uint64_t)tz->phys_addr;
+	*phys = (uint64_t)tz->iova;
 	return tz->addr;
 }
 

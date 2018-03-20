@@ -1,40 +1,12 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include <rte_common.h>
 #include <rte_cycles.h>
@@ -42,7 +14,6 @@
 #include <rte_malloc.h>
 
 #include <rte_memcpy.h>
-#include <rte_cpuflags.h>
 
 #include "test.h"
 
@@ -80,7 +51,13 @@ static size_t buf_sizes[TEST_VALUE_RANGE];
 #define TEST_BATCH_SIZE         100
 
 /* Data is aligned on this many bytes (power of 2) */
-static uint8_t alignment_unit = 16;
+#ifdef RTE_MACHINE_CPUFLAG_AVX512F
+#define ALIGNMENT_UNIT          64
+#elif defined RTE_MACHINE_CPUFLAG_AVX2
+#define ALIGNMENT_UNIT          32
+#else /* RTE_MACHINE_CPUFLAG */
+#define ALIGNMENT_UNIT          16
+#endif /* RTE_MACHINE_CPUFLAG */
 
 /*
  * Pointers used in performance tests. The two large buffers are for uncached
@@ -90,54 +67,25 @@ static uint8_t alignment_unit = 16;
 static uint8_t *large_buf_read, *large_buf_write;
 static uint8_t *small_buf_read, *small_buf_write;
 
-/* Initialise alignment_unit based on machine at run-time. */
-static void
-init_alignment_unit(void)
-{
-#ifdef CC_SUPPORT_AVX512
-	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX512F)) {
-		alignment_unit = 64;
-		return;
-	}
-#endif
-#ifdef CC_SUPPORT_AVX2
-	if (rte_cpu_get_flag_enabled(RTE_CPUFLAG_AVX2)) {
-		alignment_unit = 32;
-		return;
-	}
-#endif
-	alignment_unit = 16;
-}
-
 /* Initialise data buffers. */
 static int
 init_buffers(void)
 {
 	unsigned i;
 
-	init_alignment_unit();
-
-	large_buf_read = rte_malloc("memcpy",
-				    LARGE_BUFFER_SIZE + alignment_unit,
-				    alignment_unit);
+	large_buf_read = rte_malloc("memcpy", LARGE_BUFFER_SIZE + ALIGNMENT_UNIT, ALIGNMENT_UNIT);
 	if (large_buf_read == NULL)
 		goto error_large_buf_read;
 
-	large_buf_write = rte_malloc("memcpy",
-				     LARGE_BUFFER_SIZE + alignment_unit,
-				     alignment_unit);
+	large_buf_write = rte_malloc("memcpy", LARGE_BUFFER_SIZE + ALIGNMENT_UNIT, ALIGNMENT_UNIT);
 	if (large_buf_write == NULL)
 		goto error_large_buf_write;
 
-	small_buf_read = rte_malloc("memcpy",
-				    SMALL_BUFFER_SIZE + alignment_unit,
-				    alignment_unit);
+	small_buf_read = rte_malloc("memcpy", SMALL_BUFFER_SIZE + ALIGNMENT_UNIT, ALIGNMENT_UNIT);
 	if (small_buf_read == NULL)
 		goto error_small_buf_read;
 
-	small_buf_write = rte_malloc("memcpy",
-				     SMALL_BUFFER_SIZE + alignment_unit,
-				     alignment_unit);
+	small_buf_write = rte_malloc("memcpy", SMALL_BUFFER_SIZE + ALIGNMENT_UNIT, ALIGNMENT_UNIT);
 	if (small_buf_write == NULL)
 		goto error_small_buf_write;
 
@@ -177,7 +125,7 @@ static inline size_t
 get_rand_offset(size_t uoffset)
 {
 	return ((rte_rand() % (LARGE_BUFFER_SIZE - SMALL_BUFFER_SIZE)) &
-			~(alignment_unit - 1)) + uoffset;
+			~(ALIGNMENT_UNIT - 1)) + uoffset;
 }
 
 /* Fill in source and destination addresses. */
@@ -241,8 +189,9 @@ do {                                                                        \
             memcpy(dst+dst_addrs[t], src+src_addrs[t], size);               \
         total_time2 += rte_rdtsc() - start_time;                            \
     }                                                                       \
-    printf("%8.0f -",  (double)total_time /TEST_ITERATIONS);                \
-    printf("%5.0f",  (double)total_time2 / TEST_ITERATIONS);                \
+    printf("%3.0f -", (double)total_time  / TEST_ITERATIONS);                 \
+    printf("%3.0f",   (double)total_time2 / TEST_ITERATIONS);                 \
+    printf("(%6.2f%%) ", ((double)total_time - total_time2)*100/total_time2); \
 } while (0)
 
 /* Run aligned memcpy tests for each cached/uncached permutation */
@@ -324,6 +273,9 @@ static int
 perf_test(void)
 {
 	int ret;
+	struct timeval tv_begin, tv_end;
+	double time_aligned, time_unaligned;
+	double time_aligned_const, time_unaligned_const;
 
 	ret = init_buffers();
 	if (ret != 0)
@@ -340,26 +292,47 @@ perf_test(void)
 	do_uncached_write(large_buf_write, 0, small_buf_read, 1, SMALL_BUFFER_SIZE);
 
 	printf("\n** rte_memcpy() - memcpy perf. tests (C = compile-time constant) **\n"
-		   "======= ============== ============== ============== ==============\n"
-		   "   Size Cache to cache   Cache to mem   Mem to cache     Mem to mem\n"
-		   "(bytes)        (ticks)        (ticks)        (ticks)        (ticks)\n"
-		   "------- -------------- -------------- -------------- --------------");
+		   "======= ================= ================= ================= =================\n"
+		   "   Size   Cache to cache     Cache to mem      Mem to cache        Mem to mem\n"
+		   "(bytes)          (ticks)          (ticks)           (ticks)           (ticks)\n"
+		   "------- ----------------- ----------------- ----------------- -----------------");
 
-	printf("\n========================= %2dB aligned ============================",
-		alignment_unit);
+	printf("\n================================= %2dB aligned =================================",
+		ALIGNMENT_UNIT);
 	/* Do aligned tests where size is a variable */
+	gettimeofday(&tv_begin, NULL);
 	perf_test_variable_aligned();
-	printf("\n------- -------------- -------------- -------------- --------------");
+	gettimeofday(&tv_end, NULL);
+	time_aligned = (double)(tv_end.tv_sec - tv_begin.tv_sec)
+		+ ((double)tv_end.tv_usec - tv_begin.tv_usec)/1000000;
+	printf("\n------- ----------------- ----------------- ----------------- -----------------");
 	/* Do aligned tests where size is a compile-time constant */
+	gettimeofday(&tv_begin, NULL);
 	perf_test_constant_aligned();
-	printf("\n=========================== Unaligned =============================");
+	gettimeofday(&tv_end, NULL);
+	time_aligned_const = (double)(tv_end.tv_sec - tv_begin.tv_sec)
+		+ ((double)tv_end.tv_usec - tv_begin.tv_usec)/1000000;
+	printf("\n================================== Unaligned ==================================");
 	/* Do unaligned tests where size is a variable */
+	gettimeofday(&tv_begin, NULL);
 	perf_test_variable_unaligned();
-	printf("\n------- -------------- -------------- -------------- --------------");
+	gettimeofday(&tv_end, NULL);
+	time_unaligned = (double)(tv_end.tv_sec - tv_begin.tv_sec)
+		+ ((double)tv_end.tv_usec - tv_begin.tv_usec)/1000000;
+	printf("\n------- ----------------- ----------------- ----------------- -----------------");
 	/* Do unaligned tests where size is a compile-time constant */
+	gettimeofday(&tv_begin, NULL);
 	perf_test_constant_unaligned();
-	printf("\n======= ============== ============== ============== ==============\n\n");
+	gettimeofday(&tv_end, NULL);
+	time_unaligned_const = (double)(tv_end.tv_sec - tv_begin.tv_sec)
+		+ ((double)tv_end.tv_usec - tv_begin.tv_usec)/1000000;
+	printf("\n======= ================= ================= ================= =================\n\n");
 
+	printf("Test Execution Time (seconds):\n");
+	printf("Aligned variable copy size   = %8.3f\n", time_aligned);
+	printf("Aligned constant copy size   = %8.3f\n", time_aligned_const);
+	printf("Unaligned variable copy size = %8.3f\n", time_unaligned);
+	printf("Unaligned constant copy size = %8.3f\n", time_unaligned_const);
 	free_buffers();
 
 	return 0;

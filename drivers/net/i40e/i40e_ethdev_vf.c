@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2016 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2016 Intel Corporation
  */
 
 #include <sys/queue.h>
@@ -51,11 +22,10 @@
 #include <rte_atomic.h>
 #include <rte_branch_prediction.h>
 #include <rte_memory.h>
-#include <rte_memzone.h>
 #include <rte_eal.h>
 #include <rte_alarm.h>
 #include <rte_ether.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_ethdev_pci.h>
 #include <rte_malloc.h>
 #include <rte_dev.h>
@@ -68,8 +38,6 @@
 #include "i40e_rxtx.h"
 #include "i40e_ethdev.h"
 #include "i40e_pf.h"
-#define I40EVF_VSI_DEFAULT_MSIX_INTR     1
-#define I40EVF_VSI_DEFAULT_MSIX_INTR_LNX 0
 
 /* busy wait delay in msec */
 #define I40EVF_BUSY_WAIT_DELAY 10
@@ -653,8 +621,9 @@ i40evf_config_irq_map(struct rte_eth_dev *dev)
 	uint32_t vector_id;
 	int i, err;
 
-	if (rte_intr_allow_others(intr_handle))
-		vector_id = I40EVF_VSI_DEFAULT_MSIX_INTR_LNX;
+	if (dev->data->dev_conf.intr_conf.rxq != 0 &&
+	    rte_intr_allow_others(intr_handle))
+		vector_id = I40E_RX_VEC_START;
 	else
 		vector_id = I40E_MISC_VEC_ID;
 
@@ -947,14 +916,16 @@ i40evf_update_stats(struct i40e_vsi *vsi,
 static void
 i40evf_dev_xstats_reset(struct rte_eth_dev *dev)
 {
+	int ret;
 	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
 	struct i40e_eth_stats *pstats = NULL;
 
 	/* read stat values to clear hardware registers */
-	i40evf_query_stats(dev, &pstats);
+	ret = i40evf_query_stats(dev, &pstats);
 
 	/* set stats offset base on current values */
-	vf->vsi.eth_stats_offset = *pstats;
+	if (ret == 0)
+		vf->vsi.eth_stats_offset = *pstats;
 }
 
 static int i40evf_dev_xstats_get_names(__rte_unused struct rte_eth_dev *dev,
@@ -1167,7 +1138,7 @@ i40evf_init_vf(struct rte_eth_dev *dev)
 	struct i40e_hw *hw = I40E_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
 	uint16_t interval =
-		i40e_calc_itr_interval(I40E_QUEUE_ITR_INTERVAL_MAX);
+		i40e_calc_itr_interval(RTE_LIBRTE_I40E_ITR_INTERVAL, 0, 0);
 
 	vf->adapter = I40E_DEV_PRIVATE_TO_ADAPTER(dev->data->dev_private);
 	vf->dev_data = dev->data;
@@ -1310,7 +1281,7 @@ i40evf_handle_pf_event(struct rte_eth_dev *dev, uint8_t *msg,
 	case VIRTCHNL_EVENT_RESET_IMPENDING:
 		PMD_DRV_LOG(DEBUG, "VIRTCHNL_EVENT_RESET_IMPENDING event");
 		_rte_eth_dev_callback_process(dev, RTE_ETH_EVENT_INTR_RESET,
-					      NULL, NULL);
+					      NULL);
 		break;
 	case VIRTCHNL_EVENT_LINK_CHANGE:
 		PMD_DRV_LOG(DEBUG, "VIRTCHNL_EVENT_LINK_CHANGE event");
@@ -1433,7 +1404,6 @@ i40evf_dev_interrupt_handler(void *param)
 
 done:
 	i40evf_enable_irq0(hw);
-	rte_intr_enable(dev->intr_handle);
 }
 
 static int
@@ -1588,13 +1558,19 @@ static int
 i40evf_init_vlan(struct rte_eth_dev *dev)
 {
 	/* Apply vlan offload setting */
-	return i40evf_vlan_offload_set(dev, ETH_VLAN_STRIP_MASK);
+	i40evf_vlan_offload_set(dev, ETH_VLAN_STRIP_MASK);
+
+	return 0;
 }
 
 static int
 i40evf_vlan_offload_set(struct rte_eth_dev *dev, int mask)
 {
 	struct rte_eth_conf *dev_conf = &dev->data->dev_conf;
+	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
+
+	if (!(vf->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN))
+		return -ENOTSUP;
 
 	/* Vlan stripping setting */
 	if (mask & ETH_VLAN_STRIP_MASK) {
@@ -1865,7 +1841,7 @@ i40evf_dev_rx_queue_intr_enable(struct rte_eth_dev *dev, uint16_t queue_id)
 	struct rte_intr_handle *intr_handle = &pci_dev->intr_handle;
 	struct i40e_hw *hw = I40E_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 	uint16_t interval =
-		i40e_calc_itr_interval(RTE_LIBRTE_I40E_ITR_INTERVAL);
+		i40e_calc_itr_interval(RTE_LIBRTE_I40E_ITR_INTERVAL, 0, 0);
 	uint16_t msix_intr;
 
 	msix_intr = intr_handle->intr_vec[queue_id];
@@ -2000,7 +1976,8 @@ i40evf_dev_start(struct rte_eth_dev *dev)
 					dev->data->nb_tx_queues);
 
 	/* check and configure queue intr-vector mapping */
-	if (dev->data->dev_conf.intr_conf.rxq != 0) {
+	if (rte_intr_cap_multiple(intr_handle) &&
+	    dev->data->dev_conf.intr_conf.rxq) {
 		intr_vector = dev->data->nb_rx_queues;
 		if (rte_intr_efd_enable(intr_handle, intr_vector))
 			return -1;
@@ -2041,7 +2018,20 @@ i40evf_dev_start(struct rte_eth_dev *dev)
 		goto err_mac;
 	}
 
+	/* When a VF port is bound to VFIO-PCI, only miscellaneous interrupt
+	 * is mapped to VFIO vector 0 in i40evf_dev_init( ).
+	 * If previous VFIO interrupt mapping set in i40evf_dev_init( ) is
+	 * not cleared, it will fail when rte_intr_enable( ) tries to map Rx
+	 * queue interrupt to other VFIO vectors.
+	 * So clear uio/vfio intr/evevnfd first to avoid failure.
+	 */
+	if (dev->data->dev_conf.intr_conf.rxq != 0) {
+		rte_intr_disable(intr_handle);
+		rte_intr_enable(intr_handle);
+	}
+
 	i40evf_enable_queues_intr(dev);
+
 	return 0;
 
 err_mac:
@@ -2204,14 +2194,22 @@ i40evf_dev_info_get(struct rte_eth_dev *dev, struct rte_eth_dev_info *dev_info)
 		DEV_RX_OFFLOAD_QINQ_STRIP |
 		DEV_RX_OFFLOAD_IPV4_CKSUM |
 		DEV_RX_OFFLOAD_UDP_CKSUM |
-		DEV_RX_OFFLOAD_TCP_CKSUM;
+		DEV_RX_OFFLOAD_TCP_CKSUM |
+		DEV_RX_OFFLOAD_OUTER_IPV4_CKSUM |
+		DEV_RX_OFFLOAD_CRC_STRIP;
 	dev_info->tx_offload_capa =
 		DEV_TX_OFFLOAD_VLAN_INSERT |
 		DEV_TX_OFFLOAD_QINQ_INSERT |
 		DEV_TX_OFFLOAD_IPV4_CKSUM |
 		DEV_TX_OFFLOAD_UDP_CKSUM |
 		DEV_TX_OFFLOAD_TCP_CKSUM |
-		DEV_TX_OFFLOAD_SCTP_CKSUM;
+		DEV_TX_OFFLOAD_SCTP_CKSUM |
+		DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM |
+		DEV_TX_OFFLOAD_TCP_TSO |
+		DEV_TX_OFFLOAD_VXLAN_TNL_TSO |
+		DEV_TX_OFFLOAD_GRE_TNL_TSO |
+		DEV_TX_OFFLOAD_IPIP_TNL_TSO |
+		DEV_TX_OFFLOAD_GENEVE_TNL_TSO;
 
 	dev_info->default_rxconf = (struct rte_eth_rxconf) {
 		.rx_thresh = {
@@ -2665,19 +2663,19 @@ i40evf_set_default_mac_addr(struct rte_eth_dev *dev,
 			    struct ether_addr *mac_addr)
 {
 	struct i40e_vf *vf = I40EVF_DEV_PRIVATE_TO_VF(dev->data->dev_private);
+	struct i40e_hw *hw = I40E_DEV_PRIVATE_TO_HW(dev->data->dev_private);
 
 	if (!is_valid_assigned_ether_addr(mac_addr)) {
 		PMD_DRV_LOG(ERR, "Tried to set invalid MAC address.");
 		return;
 	}
 
-	if (is_same_ether_addr(mac_addr, dev->data->mac_addrs))
-		return;
-
 	if (vf->flags & I40E_FLAG_VF_MAC_BY_PF)
 		return;
 
-	i40evf_del_mac_addr_by_addr(dev, dev->data->mac_addrs);
+	i40evf_del_mac_addr_by_addr(dev, (struct ether_addr *)hw->mac.addr);
 
 	i40evf_add_mac_addr(dev, mac_addr, 0, 0);
+
+	ether_addr_copy(mac_addr, (struct ether_addr *)hw->mac.addr);
 }

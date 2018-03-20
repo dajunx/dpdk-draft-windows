@@ -44,7 +44,7 @@
 #include <libsze2.h>
 
 #include <rte_mbuf.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_ethdev_pci.h>
 #include <rte_malloc.h>
 #include <rte_memcpy.h>
@@ -682,7 +682,7 @@ eth_szedata2_tx(void *queue,
 	uint32_t hwpkt_len;
 	uint32_t unlock_size;
 	uint32_t rem_len;
-	uint8_t mbuf_segs;
+	uint16_t mbuf_segs;
 	uint16_t pkt_left = nb_pkts;
 
 	if (sze_q->sze == NULL || nb_pkts == 0)
@@ -1214,7 +1214,7 @@ eth_link_update(struct rte_eth_dev *dev,
 
 	link.link_status = (link_is_up) ? ETH_LINK_UP : ETH_LINK_DOWN;
 
-	link.link_autoneg = ETH_LINK_SPEED_FIXED;
+	link.link_autoneg = ETH_LINK_FIXED;
 
 	rte_atomic64_cmpset((uint64_t *)dev_link, *(uint64_t *)dev_link,
 			*(uint64_t *)link_ptr);
@@ -1540,7 +1540,7 @@ rte_szedata2_eth_dev_init(struct rte_eth_dev *dev)
 		return -EINVAL;
 	}
 	snprintf(rsc_filename, PATH_MAX,
-		"%s/" PCI_PRI_FMT "/resource%u", pci_get_sysfs_path(),
+		"%s/" PCI_PRI_FMT "/resource%u", rte_pci_get_sysfs_path(),
 		pci_addr->domain, pci_addr->bus,
 		pci_addr->devid, pci_addr->function, PCI_RESOURCE_NUMBER);
 	fd = open(rsc_filename, O_RDWR);
@@ -1553,7 +1553,7 @@ rte_szedata2_eth_dev_init(struct rte_eth_dev *dev)
 			pci_dev->mem_resource[PCI_RESOURCE_NUMBER].len,
 			PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	close(fd);
-	if (pci_resource_ptr == NULL) {
+	if (pci_resource_ptr == MAP_FAILED) {
 		RTE_LOG(ERR, PMD, "Could not mmap file %s (fd = %d)\n",
 				rsc_filename, fd);
 		return -EINVAL;

@@ -96,7 +96,7 @@ typedef uint64_t dma_addr_t;
 #define ENA_GET_SYSTEM_USECS()						\
 	(rte_get_timer_cycles() * US_PER_S / rte_get_timer_hz())
 
-#if RTE_LOG_LEVEL >= RTE_LOG_DEBUG
+#if RTE_LOG_DP_LEVEL >= RTE_LOG_DEBUG
 #define ENA_ASSERT(cond, format, arg...)				\
 	do {								\
 		if (unlikely(!(cond))) {				\
@@ -191,7 +191,7 @@ typedef uint64_t dma_addr_t;
 		mz = rte_memzone_reserve(z_name, size, SOCKET_ID_ANY, 0); \
 		memset(mz->addr, 0, size);				\
 		virt = mz->addr;					\
-		phys = mz->phys_addr;					\
+		phys = mz->iova;					\
 		handle = mz;						\
 	} while (0)
 #define ENA_MEM_FREE_COHERENT(dmadev, size, virt, phys, handle) 	\
@@ -209,7 +209,7 @@ typedef uint64_t dma_addr_t;
 		mz = rte_memzone_reserve(z_name, size, node, 0); \
 		memset(mz->addr, 0, size);				\
 		virt = mz->addr;					\
-		phys = mz->phys_addr;					\
+		phys = mz->iova;					\
 	} while (0)
 
 #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) \

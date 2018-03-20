@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <string.h>
@@ -226,7 +197,7 @@ vfio_group_device_count(int vfio_group_fd)
 }
 
 int
-clear_group(int vfio_group_fd)
+rte_vfio_clear_group(int vfio_group_fd)
 {
 	int i;
 	int socket_fd, ret;
@@ -284,7 +255,7 @@ clear_group(int vfio_group_fd)
 }
 
 int
-vfio_setup_device(const char *sysfs_base, const char *dev_addr,
+rte_vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 		int *vfio_dev_fd, struct vfio_device_info *device_info)
 {
 	struct vfio_group_status group_status = {
@@ -329,12 +300,12 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 		RTE_LOG(ERR, EAL, "  %s cannot get group status, "
 				"error %i (%s)\n", dev_addr, errno, strerror(errno));
 		close(vfio_group_fd);
-		clear_group(vfio_group_fd);
+		rte_vfio_clear_group(vfio_group_fd);
 		return -1;
 	} else if (!(group_status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
 		RTE_LOG(ERR, EAL, "  %s VFIO group is not viable!\n", dev_addr);
 		close(vfio_group_fd);
-		clear_group(vfio_group_fd);
+		rte_vfio_clear_group(vfio_group_fd);
 		return -1;
 	}
 
@@ -348,7 +319,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 			RTE_LOG(ERR, EAL, "  %s cannot add VFIO group to container, "
 					"error %i (%s)\n", dev_addr, errno, strerror(errno));
 			close(vfio_group_fd);
-			clear_group(vfio_group_fd);
+			rte_vfio_clear_group(vfio_group_fd);
 			return -1;
 		}
 
@@ -370,7 +341,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 					"  %s failed to select IOMMU type\n",
 					dev_addr);
 				close(vfio_group_fd);
-				clear_group(vfio_group_fd);
+				rte_vfio_clear_group(vfio_group_fd);
 				return -1;
 			}
 			ret = t->dma_map_func(vfio_cfg.vfio_container_fd);
@@ -379,7 +350,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 					"  %s DMA remapping failed, error %i (%s)\n",
 					dev_addr, errno, strerror(errno));
 				close(vfio_group_fd);
-				clear_group(vfio_group_fd);
+				rte_vfio_clear_group(vfio_group_fd);
 				return -1;
 			}
 		}
@@ -395,7 +366,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 		RTE_LOG(WARNING, EAL, "Getting a vfio_dev_fd for %s failed\n",
 				dev_addr);
 		close(vfio_group_fd);
-		clear_group(vfio_group_fd);
+		rte_vfio_clear_group(vfio_group_fd);
 		return -1;
 	}
 
@@ -407,7 +378,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 				strerror(errno));
 		close(*vfio_dev_fd);
 		close(vfio_group_fd);
-		clear_group(vfio_group_fd);
+		rte_vfio_clear_group(vfio_group_fd);
 		return -1;
 	}
 	vfio_group_device_get(vfio_group_fd);
@@ -416,7 +387,7 @@ vfio_setup_device(const char *sysfs_base, const char *dev_addr,
 }
 
 int
-vfio_release_device(const char *sysfs_base, const char *dev_addr,
+rte_vfio_release_device(const char *sysfs_base, const char *dev_addr,
 		    int vfio_dev_fd)
 {
 	struct vfio_group_status group_status = {
@@ -467,7 +438,7 @@ vfio_release_device(const char *sysfs_base, const char *dev_addr,
 			return -1;
 		}
 
-		if (clear_group(vfio_group_fd) < 0) {
+		if (rte_vfio_clear_group(vfio_group_fd) < 0) {
 			RTE_LOG(INFO, EAL, "Error when clearing group for %s\n",
 					   dev_addr);
 			return -1;
@@ -478,7 +449,7 @@ vfio_release_device(const char *sysfs_base, const char *dev_addr,
 }
 
 int
-vfio_enable(const char *modname)
+rte_vfio_enable(const char *modname)
 {
 	/* initialize group list */
 	int i;
@@ -523,9 +494,9 @@ vfio_enable(const char *modname)
 }
 
 int
-vfio_is_enabled(const char *modname)
+rte_vfio_is_enabled(const char *modname)
 {
-	const int mod_available = rte_eal_check_module(modname);
+	const int mod_available = rte_eal_check_module(modname) > 0;
 	return vfio_cfg.vfio_enabled && mod_available;
 }
 
@@ -713,7 +684,7 @@ vfio_type1_dma_map(int vfio_container_fd)
 		if (rte_eal_iova_mode() == RTE_IOVA_VA)
 			dma_map.iova = dma_map.vaddr;
 		else
-			dma_map.iova = ms[i].phys_addr;
+			dma_map.iova = ms[i].iova;
 		dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
 
 		ret = ioctl(vfio_container_fd, VFIO_IOMMU_MAP_DMA, &dma_map);
@@ -772,7 +743,7 @@ vfio_spapr_dma_map(int vfio_container_fd)
 			break;
 
 		create.window_size = RTE_MAX(create.window_size,
-				ms[i].phys_addr + ms[i].len);
+				ms[i].iova + ms[i].len);
 	}
 
 	/* sPAPR requires window size to be a power of 2 */
@@ -816,7 +787,7 @@ vfio_spapr_dma_map(int vfio_container_fd)
 		if (rte_eal_iova_mode() == RTE_IOVA_VA)
 			dma_map.iova = dma_map.vaddr;
 		else
-			dma_map.iova = ms[i].phys_addr;
+			dma_map.iova = ms[i].iova;
 		dma_map.flags = VFIO_DMA_MAP_FLAG_READ |
 				 VFIO_DMA_MAP_FLAG_WRITE;
 
@@ -841,22 +812,35 @@ vfio_noiommu_dma_map(int __rte_unused vfio_container_fd)
 }
 
 int
-vfio_noiommu_is_enabled(void)
+rte_vfio_noiommu_is_enabled(void)
 {
-	int fd, ret, cnt __rte_unused;
+	int fd;
+	ssize_t cnt;
 	char c;
 
-	ret = -1;
 	fd = open(VFIO_NOIOMMU_MODE, O_RDONLY);
-	if (fd < 0)
-		return -1;
+	if (fd < 0) {
+		if (errno != ENOENT) {
+			RTE_LOG(ERR, EAL, "  cannot open vfio noiommu file %i (%s)\n",
+					errno, strerror(errno));
+			return -1;
+		}
+		/*
+		 * else the file does not exists
+		 * i.e. noiommu is not enabled
+		 */
+		return 0;
+	}
 
 	cnt = read(fd, &c, 1);
-	if (c == 'Y')
-		ret = 1;
-
 	close(fd);
-	return ret;
+	if (cnt != 1) {
+		RTE_LOG(ERR, EAL, "  unable to read from vfio noiommu "
+				"file %i (%s)\n", errno, strerror(errno));
+		return -1;
+	}
+
+	return c == 'Y';
 }
 
 #endif

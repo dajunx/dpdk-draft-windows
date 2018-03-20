@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 #include <sys/mman.h>
 #include <unistd.h>
@@ -54,9 +25,14 @@ phys_addr_t
 rte_mem_virt2phy(const void *virtaddr)
 {
 	/* XXX not implemented. This function is only used by
-	 * rte_mempool_virt2phy() when hugepages are disabled. */
+	 * rte_mempool_virt2iova() when hugepages are disabled. */
 	(void)virtaddr;
-	return RTE_BAD_PHYS_ADDR;
+	return RTE_BAD_IOVA;
+}
+rte_iova_t
+rte_mem_virt2iova(const void *virtaddr)
+{
+	return rte_mem_virt2phy(virtaddr);
 }
 
 int
@@ -73,7 +49,7 @@ rte_eal_hugepage_init(void)
 	/* for debug purposes, hugetlbfs can be disabled */
 	if (internal_config.no_hugetlbfs) {
 		addr = malloc(internal_config.memory);
-		mcfg->memseg[0].phys_addr = (phys_addr_t)(uintptr_t)addr;
+		mcfg->memseg[0].iova = (rte_iova_t)(uintptr_t)addr;
 		mcfg->memseg[0].addr = addr;
 		mcfg->memseg[0].hugepage_sz = RTE_PGSIZE_4K;
 		mcfg->memseg[0].len = internal_config.memory;
@@ -88,7 +64,7 @@ rte_eal_hugepage_init(void)
 		hpi = &internal_config.hugepage_info[i];
 		for (j = 0; j < hpi->num_pages[0]; j++) {
 			struct rte_memseg *seg;
-			uint64_t physaddr;
+			rte_iova_t physaddr;
 			int error;
 			size_t sysctl_size = sizeof(physaddr);
 			char physaddr_str[64];
@@ -114,7 +90,7 @@ rte_eal_hugepage_init(void)
 
 			seg = &mcfg->memseg[seg_idx++];
 			seg->addr = addr;
-			seg->phys_addr = physaddr;
+			seg->iova = physaddr;
 			seg->hugepage_sz = hpi->hugepage_sz;
 			seg->len = hpi->hugepage_sz;
 			seg->nchannel = mcfg->nchannel;
@@ -150,7 +126,7 @@ rte_eal_hugepage_attach(void)
 	/* Map the shared hugepage_info into the process address spaces */
 	hpi = mmap(NULL, sizeof(struct hugepage_info), PROT_READ, MAP_PRIVATE,
 			fd_hugepage_info, 0);
-	if (hpi == NULL) {
+	if (hpi == MAP_FAILED) {
 		RTE_LOG(ERR, EAL, "Could not mmap %s\n", eal_hugepage_info_path());
 		goto error;
 	}

@@ -1,35 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   Copyright(c) 2013 6WIND.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation.
+ * Copyright(c) 2013 6WIND S.A.
  */
 
 #define _FILE_OFFSET_BITS 64
@@ -59,7 +30,6 @@
 
 #include <rte_log.h>
 #include <rte_memory.h>
-#include <rte_memzone.h>
 #include <rte_launch.h>
 #include <rte_eal.h>
 #include <rte_eal_memconfig.h>
@@ -108,10 +78,11 @@ test_phys_addrs_available(void)
 
 	physaddr = rte_mem_virt2phy(&tmp);
 	if (physaddr == RTE_BAD_PHYS_ADDR) {
-		RTE_LOG(ERR, EAL,
-			"Cannot obtain physical addresses: %s. "
-			"Only vfio will function.\n",
-			strerror(errno));
+		if (rte_eal_iova_mode() == RTE_IOVA_PA)
+			RTE_LOG(ERR, EAL,
+				"Cannot obtain physical addresses: %s. "
+				"Only vfio will function.\n",
+				strerror(errno));
 		phys_addrs_available = false;
 	}
 }
@@ -128,12 +99,9 @@ rte_mem_virt2phy(const void *virtaddr)
 	int page_size;
 	off_t offset;
 
-	if (rte_eal_iova_mode() == RTE_IOVA_VA)
-		return (uintptr_t)virtaddr;
-
 	/* Cannot parse /proc/self/pagemap, no need to log errors everywhere */
 	if (!phys_addrs_available)
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 
 	/* standard page size */
 	page_size = getpagesize();
@@ -142,7 +110,7 @@ rte_mem_virt2phy(const void *virtaddr)
 	if (fd < 0) {
 		RTE_LOG(ERR, EAL, "%s(): cannot open /proc/self/pagemap: %s\n",
 			__func__, strerror(errno));
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 	}
 
 	virt_pfn = (unsigned long)virtaddr / page_size;
@@ -151,7 +119,7 @@ rte_mem_virt2phy(const void *virtaddr)
 		RTE_LOG(ERR, EAL, "%s(): seek error in /proc/self/pagemap: %s\n",
 				__func__, strerror(errno));
 		close(fd);
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 	}
 
 	retval = read(fd, &page, PFN_MASK_SIZE);
@@ -159,12 +127,12 @@ rte_mem_virt2phy(const void *virtaddr)
 	if (retval < 0) {
 		RTE_LOG(ERR, EAL, "%s(): cannot read /proc/self/pagemap: %s\n",
 				__func__, strerror(errno));
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 	} else if (retval != PFN_MASK_SIZE) {
 		RTE_LOG(ERR, EAL, "%s(): read %d bytes from /proc/self/pagemap "
 				"but expected %d:\n",
 				__func__, retval, PFN_MASK_SIZE);
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 	}
 
 	/*
@@ -172,12 +140,20 @@ rte_mem_virt2phy(const void *virtaddr)
 	 * pagemap.txt in linux Documentation)
 	 */
 	if ((page & 0x7fffffffffffffULL) == 0)
-		return RTE_BAD_PHYS_ADDR;
+		return RTE_BAD_IOVA;
 
 	physaddr = ((page & 0x7fffffffffffffULL) * page_size)
 		+ ((unsigned long)virtaddr % page_size);
 
 	return physaddr;
+}
+
+rte_iova_t
+rte_mem_virt2iova(const void *virtaddr)
+{
+	if (rte_eal_iova_mode() == RTE_IOVA_VA)
+		return (uintptr_t)virtaddr;
+	return rte_mem_virt2phy(virtaddr);
 }
 
 /*
@@ -256,16 +232,21 @@ static void *
 get_virtual_area(size_t *size, size_t hugepage_sz)
 {
 	void *addr;
+	void *addr_hint;
 	int fd;
 	long aligned_addr;
 
 	if (internal_config.base_virtaddr != 0) {
-		addr = (void*) (uintptr_t) (internal_config.base_virtaddr +
-				baseaddr_offset);
+		int page_size = sysconf(_SC_PAGE_SIZE);
+		addr_hint = (void *) (uintptr_t)
+			(internal_config.base_virtaddr + baseaddr_offset);
+		addr_hint = RTE_PTR_ALIGN_FLOOR(addr_hint, page_size);
+	} else {
+		addr_hint = NULL;
 	}
-	else addr = NULL;
 
 	RTE_LOG(DEBUG, EAL, "Ask a virtual area of 0x%zx bytes\n", *size);
+
 
 	fd = open("/dev/zero", O_RDONLY);
 	if (fd < 0){
@@ -273,16 +254,22 @@ get_virtual_area(size_t *size, size_t hugepage_sz)
 		return NULL;
 	}
 	do {
-		addr = mmap(addr,
-				(*size) + hugepage_sz, PROT_READ,
+		addr = mmap(addr_hint, (*size) + hugepage_sz, PROT_READ,
 #ifdef RTE_ARCH_PPC_64
 				MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
 #else
 				MAP_PRIVATE,
 #endif
 				fd, 0);
-		if (addr == MAP_FAILED)
+		if (addr == MAP_FAILED) {
 			*size -= hugepage_sz;
+		} else if (addr_hint != NULL && addr != addr_hint) {
+			RTE_LOG(WARNING, EAL, "WARNING! Base virtual address "
+				"hint (%p != %p) not respected!\n",
+				addr_hint, addr);
+			RTE_LOG(WARNING, EAL, "   This may cause issues with "
+				"mapping memory into secondary processes\n");
+		}
 	} while (addr == MAP_FAILED && *size > 0);
 
 	if (addr == MAP_FAILED) {
@@ -339,7 +326,7 @@ void numa_error(char *where)
  * hugetlbfs, then mmap() hugepage_sz data in it. If orig is set, the
  * virtual address is stored in hugepg_tbl[i].orig_va, else it is stored
  * in hugepg_tbl[i].final_va. The second mapping (when orig is 0) tries to
- * map continguous physical blocks in contiguous virtual blocks.
+ * map contiguous physical blocks in contiguous virtual blocks.
  */
 static unsigned
 map_all_hugepages(struct hugepage_file *hugepg_tbl, struct hugepage_info *hpi,
@@ -1031,9 +1018,9 @@ rte_eal_hugepage_init(void)
 			return -1;
 		}
 		if (rte_eal_iova_mode() == RTE_IOVA_VA)
-			mcfg->memseg[0].phys_addr = (uintptr_t)addr;
+			mcfg->memseg[0].iova = (uintptr_t)addr;
 		else
-			mcfg->memseg[0].phys_addr = RTE_BAD_PHYS_ADDR;
+			mcfg->memseg[0].iova = RTE_BAD_IOVA;
 		mcfg->memseg[0].addr = addr;
 		mcfg->memseg[0].hugepage_sz = RTE_PGSIZE_4K;
 		mcfg->memseg[0].len = internal_config.memory;
@@ -1282,7 +1269,7 @@ rte_eal_hugepage_init(void)
 			if (j == RTE_MAX_MEMSEG)
 				break;
 
-			mcfg->memseg[j].phys_addr = hugepage[i].physaddr;
+			mcfg->memseg[j].iova = hugepage[i].physaddr;
 			mcfg->memseg[j].addr = hugepage[i].final_va;
 			mcfg->memseg[j].len = hugepage[i].size;
 			mcfg->memseg[j].socket_id = hugepage[i].socket_id;
@@ -1293,7 +1280,7 @@ rte_eal_hugepage_init(void)
 #ifdef RTE_ARCH_PPC_64
 		/* Use the phy and virt address of the last page as segment
 		 * address for IBM Power architecture */
-			mcfg->memseg[j].phys_addr = hugepage[i].physaddr;
+			mcfg->memseg[j].iova = hugepage[i].physaddr;
 			mcfg->memseg[j].addr = hugepage[i].final_va;
 #endif
 			mcfg->memseg[j].len += mcfg->memseg[j].hugepage_sz;

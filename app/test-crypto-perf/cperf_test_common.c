@@ -1,33 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2017 Intel Corporation
  */
 
 #include <rte_malloc.h>
@@ -50,7 +22,7 @@ fill_single_seg_mbuf(struct rte_mbuf *m, struct rte_mempool *mp,
 	/* start of buffer is after mbuf structure and priv data */
 	m->priv_size = 0;
 	m->buf_addr = (char *)m + mbuf_hdr_size;
-	m->buf_physaddr = rte_mempool_virt2phy(mp, obj) +
+	m->buf_iova = rte_mempool_virt2iova(obj) +
 		mbuf_offset + mbuf_hdr_size;
 	m->buf_len = segment_sz;
 	m->data_len = segment_sz;
@@ -74,14 +46,14 @@ fill_multi_seg_mbuf(struct rte_mbuf *m, struct rte_mempool *mp,
 	uint16_t mbuf_hdr_size = sizeof(struct rte_mbuf);
 	uint16_t remaining_segments = segments_nb;
 	struct rte_mbuf *next_mbuf;
-	phys_addr_t next_seg_phys_addr = rte_mempool_virt2phy(mp, obj) +
+	rte_iova_t next_seg_phys_addr = rte_mempool_virt2iova(obj) +
 			 mbuf_offset + mbuf_hdr_size;
 
 	do {
 		/* start of buffer is after mbuf structure and priv data */
 		m->priv_size = 0;
 		m->buf_addr = (char *)m + mbuf_hdr_size;
-		m->buf_physaddr = next_seg_phys_addr;
+		m->buf_iova = next_seg_phys_addr;
 		next_seg_phys_addr += mbuf_hdr_size + segment_sz;
 		m->buf_len = segment_sz;
 		m->data_len = segment_sz;
@@ -119,6 +91,8 @@ mempool_obj_init(struct rte_mempool *mp,
 	op->type = RTE_CRYPTO_OP_TYPE_SYMMETRIC;
 	op->status = RTE_CRYPTO_OP_STATUS_NOT_PROCESSED;
 	op->sess_type = RTE_CRYPTO_OP_WITH_SESSION;
+	op->phys_addr = rte_mem_virt2phy(obj);
+	op->mempool = mp;
 
 	/* Set source buffer */
 	op->sym->m_src = m;

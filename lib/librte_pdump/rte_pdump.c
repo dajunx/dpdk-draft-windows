@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2016 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2016 Intel Corporation
  */
 
 #include <sys/socket.h>
@@ -139,7 +110,7 @@ pdump_pktmbuf_copy(struct rte_mbuf *m, struct rte_mempool *mp)
 {
 	struct rte_mbuf *m_dup, *seg, **prev;
 	uint32_t pktlen;
-	uint8_t nseg;
+	uint16_t nseg;
 
 	m_dup = rte_pktmbuf_alloc(mp);
 	if (unlikely(m_dup == NULL))
@@ -153,6 +124,8 @@ pdump_pktmbuf_copy(struct rte_mbuf *m, struct rte_mempool *mp)
 	do {
 		nseg++;
 		if (pdump_pktmbuf_copy_data(seg, m) < 0) {
+			if (seg != m_dup)
+				rte_pktmbuf_free_seg(seg);
 			rte_pktmbuf_free(m_dup);
 			return NULL;
 		}
@@ -225,7 +198,7 @@ pdump_tx(uint16_t port __rte_unused, uint16_t qidx __rte_unused,
 }
 
 static int
-pdump_regitser_rx_callbacks(uint16_t end_q, uint16_t port, uint16_t queue,
+pdump_register_rx_callbacks(uint16_t end_q, uint16_t port, uint16_t queue,
 				struct rte_ring *ring, struct rte_mempool *mp,
 				uint16_t operation)
 {
@@ -279,7 +252,7 @@ pdump_regitser_rx_callbacks(uint16_t end_q, uint16_t port, uint16_t queue,
 }
 
 static int
-pdump_regitser_tx_callbacks(uint16_t end_q, uint16_t port, uint16_t queue,
+pdump_register_tx_callbacks(uint16_t end_q, uint16_t port, uint16_t queue,
 				struct rte_ring *ring, struct rte_mempool *mp,
 				uint16_t operation)
 {
@@ -351,7 +324,7 @@ set_pdump_rxtx_cbs(struct pdump_request *p)
 				&port);
 		if (ret < 0) {
 			RTE_LOG(ERR, PDUMP,
-				"failed to get potid for device id=%s\n",
+				"failed to get port id for device id=%s\n",
 				p->data.en_v1.device);
 			return -EINVAL;
 		}
@@ -363,7 +336,7 @@ set_pdump_rxtx_cbs(struct pdump_request *p)
 				&port);
 		if (ret < 0) {
 			RTE_LOG(ERR, PDUMP,
-				"failed to get potid for device id=%s\n",
+				"failed to get port id for device id=%s\n",
 				p->data.dis_v1.device);
 			return -EINVAL;
 		}
@@ -400,7 +373,7 @@ set_pdump_rxtx_cbs(struct pdump_request *p)
 	/* register RX callback */
 	if (flags & RTE_PDUMP_FLAG_RX) {
 		end_q = (queue == RTE_PDUMP_ALL_QUEUES) ? nb_rx_q : queue + 1;
-		ret = pdump_regitser_rx_callbacks(end_q, port, queue, ring, mp,
+		ret = pdump_register_rx_callbacks(end_q, port, queue, ring, mp,
 							operation);
 		if (ret < 0)
 			return ret;
@@ -409,7 +382,7 @@ set_pdump_rxtx_cbs(struct pdump_request *p)
 	/* register TX callback */
 	if (flags & RTE_PDUMP_FLAG_TX) {
 		end_q = (queue == RTE_PDUMP_ALL_QUEUES) ? nb_tx_q : queue + 1;
-		ret = pdump_regitser_tx_callbacks(end_q, port, queue, ring, mp,
+		ret = pdump_register_tx_callbacks(end_q, port, queue, ring, mp,
 							operation);
 		if (ret < 0)
 			return ret;
@@ -579,7 +552,7 @@ rte_pdump_init(const char *path)
 	if (ret != 0) {
 		RTE_LOG(ERR, PDUMP,
 			"Failed to create the pdump thread:%s, %s:%d\n",
-			strerror(errno), __func__, __LINE__);
+			strerror(ret), __func__, __LINE__);
 		return -1;
 	}
 	/* Set thread_name for aid in debugging. */
@@ -602,7 +575,7 @@ rte_pdump_uninit(void)
 	if (ret != 0) {
 		RTE_LOG(ERR, PDUMP,
 			"Failed to cancel the pdump thread:%s, %s:%d\n",
-			strerror(errno), __func__, __LINE__);
+			strerror(ret), __func__, __LINE__);
 		return -1;
 	}
 

@@ -1,38 +1,9 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2015 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2015 Intel Corporation
  */
 
 #include <stdint.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_malloc.h>
 
 #include "base/i40e_prototype.h"
@@ -86,8 +57,8 @@ i40e_rxq_rearm(struct i40e_rx_queue *rxq)
 		mb0 = rxep[0].mbuf;
 		mb1 = rxep[1].mbuf;
 
-		/* load buf_addr(lo 64bit) and buf_physaddr(hi 64bit) */
-		RTE_BUILD_BUG_ON(offsetof(struct rte_mbuf, buf_physaddr) !=
+		/* load buf_addr(lo 64bit) and buf_iova(hi 64bit) */
+		RTE_BUILD_BUG_ON(offsetof(struct rte_mbuf, buf_iova) !=
 				offsetof(struct rte_mbuf, buf_addr) + 8);
 		vaddr0 = _mm_loadu_si128((__m128i *)&mb0->buf_addr);
 		vaddr1 = _mm_loadu_si128((__m128i *)&mb1->buf_addr);
@@ -549,7 +520,7 @@ vtx1(volatile struct i40e_tx_desc *txdp,
 			((uint64_t)pkt->data_len << I40E_TXD_QW1_TX_BUF_SZ_SHIFT));
 
 	__m128i descriptor = _mm_set_epi64x(high_qw,
-				pkt->buf_physaddr + pkt->data_off);
+				pkt->buf_iova + pkt->data_off);
 	_mm_store_si128((__m128i *)txdp, descriptor);
 }
 

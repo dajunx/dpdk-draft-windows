@@ -1,32 +1,5 @@
-..  BSD LICENSE
-    Copyright(c) 2017 Intel Corporation. All rights reserved.
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-    * Neither the name of Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+..  SPDX-License-Identifier: BSD-3-Clause
+    Copyright(c) 2017 Intel Corporation.
 
 Features Overview
 =================
@@ -134,6 +107,18 @@ invoke rte_eth_tx_burst() concurrently on the same Tx queue without SW lock.
 * **[uses]    rte_eth_txconf,rte_eth_txmode**: ``offloads:DEV_TX_OFFLOAD_MT_LOCKFREE``.
 * **[provides] rte_eth_dev_info**: ``tx_offload_capa,tx_queue_offload_capa:DEV_TX_OFFLOAD_MT_LOCKFREE``.
 * **[related]  API**: ``rte_eth_tx_burst()``.
+
+
+.. _nic_features_fast_mbuf_free:
+
+Fast mbuf free
+--------------
+
+Supports optimization for fast release of mbufs following successful Tx.
+Requires that per queue, all mbufs come from the same mempool and has refcnt = 1.
+
+* **[uses]       rte_eth_txconf,rte_eth_txmode**: ``offloads:DEV_TX_OFFLOAD_MBUF_FAST_FREE``.
+* **[provides]   rte_eth_dev_info**: ``tx_offload_capa,tx_queue_offload_capa:DEV_TX_OFFLOAD_MBUF_FAST_FREE``.
 
 
 .. _nic_features_free_tx_mbuf_on_demand:
@@ -494,6 +479,23 @@ Supports adding traffic mirroring rules.
 * **[related]    API**: ``rte_eth_mirror_rule_set()``, ``rte_eth_mirror_rule_reset()``.
 
 
+.. _nic_features_inline_crypto_doc:
+
+Inline crypto
+-------------
+
+Supports inline crypto processing (eg. inline IPsec). See Security library and PMD documentation for more details.
+
+* **[uses]       rte_eth_rxconf,rte_eth_rxmode**: ``offloads:DEV_RX_OFFLOAD_SECURITY``,
+* **[uses]       rte_eth_txconf,rte_eth_txmode**: ``offloads:DEV_TX_OFFLOAD_SECURITY``.
+* **[implements] rte_security_ops**: ``session_create``, ``session_update``,
+  ``session_stats_get``, ``session_destroy``, ``set_pkt_metadata``, ``capabilities_get``.
+* **[provides] rte_eth_dev_info**: ``rx_offload_capa,rx_queue_offload_capa:DEV_RX_OFFLOAD_SECURITY``,
+  ``tx_offload_capa,tx_queue_offload_capa:DEV_TX_OFFLOAD_SECURITY``.
+* **[provides]   mbuf**: ``mbuf.ol_flags:PKT_RX_SEC_OFFLOAD``,
+  ``mbuf.ol_flags:PKT_TX_SEC_OFFLOAD``, ``mbuf.ol_flags:PKT_RX_SEC_OFFLOAD_FAILED``.
+
+
 .. _nic_features_crc_offload:
 
 CRC offload
@@ -639,15 +641,6 @@ Supports packet type parsing and returns a list of supported types.
 
 
 .. _nic_features_timesync:
-
-Mbuf fast free
---------------
-
-Supports optimization for fast release of mbufs following successful Tx.
-Requires that per queue, all mbufs come from the same mempool and has refcnt = 1.
-
-* **[uses]       rte_eth_txconf,rte_eth_txmode**: ``offloads:DEV_TX_OFFLOAD_MBUF_FAST_FREE``.
-* **[provides]   rte_eth_dev_info**: ``tx_offload_capa,tx_queue_offload_capa:DEV_TX_OFFLOAD_MBUF_FAST_FREE``.
 
 Timesync
 --------

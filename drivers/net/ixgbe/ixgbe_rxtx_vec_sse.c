@@ -1,38 +1,9 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2015 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2015 Intel Corporation
  */
 
 #include <stdint.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_malloc.h>
 
 #include "ixgbe_ethdev.h"
@@ -86,8 +57,8 @@ ixgbe_rxq_rearm(struct ixgbe_rx_queue *rxq)
 		mb0 = rxep[0].mbuf;
 		mb1 = rxep[1].mbuf;
 
-		/* load buf_addr(lo 64bit) and buf_physaddr(hi 64bit) */
-		RTE_BUILD_BUG_ON(offsetof(struct rte_mbuf, buf_physaddr) !=
+		/* load buf_addr(lo 64bit) and buf_iova(hi 64bit) */
+		RTE_BUILD_BUG_ON(offsetof(struct rte_mbuf, buf_iova) !=
 				offsetof(struct rte_mbuf, buf_addr) + 8);
 		vaddr0 = _mm_loadu_si128((__m128i *)&(mb0->buf_addr));
 		vaddr1 = _mm_loadu_si128((__m128i *)&(mb1->buf_addr));
@@ -126,54 +97,36 @@ ixgbe_rxq_rearm(struct ixgbe_rx_queue *rxq)
 static inline void
 desc_to_olflags_v_ipsec(__m128i descs[4], struct rte_mbuf **rx_pkts)
 {
-	__m128i sterr0, sterr1, sterr2, sterr3;
-	__m128i tmp1, tmp2, tmp3, tmp4;
-	__m128i rearm0, rearm1, rearm2, rearm3;
+	__m128i sterr, rearm, tmp_e, tmp_p;
+	uint32_t *rearm0 = (uint32_t *)rx_pkts[0]->rearm_data + 2;
+	uint32_t *rearm1 = (uint32_t *)rx_pkts[1]->rearm_data + 2;
+	uint32_t *rearm2 = (uint32_t *)rx_pkts[2]->rearm_data + 2;
+	uint32_t *rearm3 = (uint32_t *)rx_pkts[3]->rearm_data + 2;
+	const __m128i ipsec_sterr_msk =
+			_mm_set1_epi32(IXGBE_RXDADV_IPSEC_STATUS_SECP |
+				       IXGBE_RXDADV_IPSEC_ERROR_AUTH_FAILED);
+	const __m128i ipsec_proc_msk  =
+			_mm_set1_epi32(IXGBE_RXDADV_IPSEC_STATUS_SECP);
+	const __m128i ipsec_err_flag  =
+			_mm_set1_epi32(PKT_RX_SEC_OFFLOAD_FAILED |
+				       PKT_RX_SEC_OFFLOAD);
+	const __m128i ipsec_proc_flag = _mm_set1_epi32(PKT_RX_SEC_OFFLOAD);
 
-	const __m128i ipsec_sterr_msk = _mm_set_epi32(
-		0, IXGBE_RXDADV_IPSEC_STATUS_SECP |
-			IXGBE_RXDADV_IPSEC_ERROR_AUTH_FAILED,
-		0, 0);
-	const __m128i ipsec_proc_msk  = _mm_set_epi32(
-		0, IXGBE_RXDADV_IPSEC_STATUS_SECP, 0, 0);
-	const __m128i ipsec_err_flag  = _mm_set_epi32(
-		0, PKT_RX_SEC_OFFLOAD_FAILED | PKT_RX_SEC_OFFLOAD,
-		0, 0);
-	const __m128i ipsec_proc_flag = _mm_set_epi32(
-		0, PKT_RX_SEC_OFFLOAD, 0, 0);
-
-	rearm0 = _mm_load_si128((__m128i *)&rx_pkts[0]->rearm_data);
-	rearm1 = _mm_load_si128((__m128i *)&rx_pkts[1]->rearm_data);
-	rearm2 = _mm_load_si128((__m128i *)&rx_pkts[2]->rearm_data);
-	rearm3 = _mm_load_si128((__m128i *)&rx_pkts[3]->rearm_data);
-	sterr0 = _mm_and_si128(descs[0], ipsec_sterr_msk);
-	sterr1 = _mm_and_si128(descs[1], ipsec_sterr_msk);
-	sterr2 = _mm_and_si128(descs[2], ipsec_sterr_msk);
-	sterr3 = _mm_and_si128(descs[3], ipsec_sterr_msk);
-	tmp1 = _mm_cmpeq_epi32(sterr0, ipsec_sterr_msk);
-	tmp2 = _mm_cmpeq_epi32(sterr0, ipsec_proc_msk);
-	tmp3 = _mm_cmpeq_epi32(sterr1, ipsec_sterr_msk);
-	tmp4 = _mm_cmpeq_epi32(sterr1, ipsec_proc_msk);
-	sterr0 = _mm_or_si128(_mm_and_si128(tmp1, ipsec_err_flag),
-				_mm_and_si128(tmp2, ipsec_proc_flag));
-	sterr1 = _mm_or_si128(_mm_and_si128(tmp3, ipsec_err_flag),
-				_mm_and_si128(tmp4, ipsec_proc_flag));
-	tmp1 = _mm_cmpeq_epi32(sterr2, ipsec_sterr_msk);
-	tmp2 = _mm_cmpeq_epi32(sterr2, ipsec_proc_msk);
-	tmp3 = _mm_cmpeq_epi32(sterr3, ipsec_sterr_msk);
-	tmp4 = _mm_cmpeq_epi32(sterr3, ipsec_proc_msk);
-	sterr2 = _mm_or_si128(_mm_and_si128(tmp1, ipsec_err_flag),
-				_mm_and_si128(tmp2, ipsec_proc_flag));
-	sterr3 = _mm_or_si128(_mm_and_si128(tmp3, ipsec_err_flag),
-				_mm_and_si128(tmp4, ipsec_proc_flag));
-	rearm0 = _mm_or_si128(rearm0, sterr0);
-	rearm1 = _mm_or_si128(rearm1, sterr1);
-	rearm2 = _mm_or_si128(rearm2, sterr2);
-	rearm3 = _mm_or_si128(rearm3, sterr3);
-	_mm_store_si128((__m128i *)&rx_pkts[0]->rearm_data, rearm0);
-	_mm_store_si128((__m128i *)&rx_pkts[1]->rearm_data, rearm1);
-	_mm_store_si128((__m128i *)&rx_pkts[2]->rearm_data, rearm2);
-	_mm_store_si128((__m128i *)&rx_pkts[3]->rearm_data, rearm3);
+	rearm = _mm_set_epi32(*rearm3, *rearm2, *rearm1, *rearm0);
+	sterr = _mm_set_epi32(_mm_extract_epi32(descs[3], 2),
+			      _mm_extract_epi32(descs[2], 2),
+			      _mm_extract_epi32(descs[1], 2),
+			      _mm_extract_epi32(descs[0], 2));
+	sterr = _mm_and_si128(sterr, ipsec_sterr_msk);
+	tmp_e = _mm_cmpeq_epi32(sterr, ipsec_sterr_msk);
+	tmp_p = _mm_cmpeq_epi32(sterr, ipsec_proc_msk);
+	sterr = _mm_or_si128(_mm_and_si128(tmp_e, ipsec_err_flag),
+				_mm_and_si128(tmp_p, ipsec_proc_flag));
+	rearm = _mm_or_si128(rearm, sterr);
+	*rearm0 = _mm_extract_epi32(rearm, 0);
+	*rearm1 = _mm_extract_epi32(rearm, 1);
+	*rearm2 = _mm_extract_epi32(rearm, 2);
+	*rearm3 = _mm_extract_epi32(rearm, 3);
 }
 #endif
 
@@ -533,7 +486,7 @@ _recv_raw_pkts_vec(struct ixgbe_rx_queue *rxq, struct rte_mbuf **rx_pkts,
 
 #ifdef RTE_LIBRTE_SECURITY
 		if (unlikely(use_ipsec))
-			desc_to_olflags_v_ipsec(descs, rx_pkts);
+			desc_to_olflags_v_ipsec(descs, &rx_pkts[pos]);
 #endif
 
 		/* D.2 pkt 3,4 set in_port/nb_seg and remove crc */
@@ -667,7 +620,7 @@ vtx1(volatile union ixgbe_adv_tx_desc *txdp,
 {
 	__m128i descriptor = _mm_set_epi64x((uint64_t)pkt->pkt_len << 46 |
 			flags | pkt->data_len,
-			pkt->buf_physaddr + pkt->data_off);
+			pkt->buf_iova + pkt->data_off);
 	_mm_store_si128((__m128i *)&txdp->read, descriptor);
 }
 

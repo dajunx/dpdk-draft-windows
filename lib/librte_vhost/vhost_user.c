@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2016 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2016 Intel Corporation
  */
 
 #include <stdint.h>
@@ -183,7 +154,22 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 		return -1;
 	}
 
-	if ((dev->flags & VIRTIO_DEV_RUNNING) && dev->features != features) {
+	if (dev->flags & VIRTIO_DEV_RUNNING) {
+		if (dev->features == features)
+			return 0;
+
+		/*
+		 * Error out if master tries to change features while device is
+		 * in running state. The exception being VHOST_F_LOG_ALL, which
+		 * is enabled when the live-migration starts.
+		 */
+		if ((dev->features ^ features) & ~(1ULL << VHOST_F_LOG_ALL)) {
+			RTE_LOG(ERR, VHOST_CONFIG,
+				"(%d) features changed while device is running.\n",
+				dev->vid);
+			return -1;
+		}
+
 		if (dev->notify_ops->features_changed)
 			dev->notify_ops->features_changed(dev->vid, features);
 	}
@@ -200,6 +186,26 @@ vhost_user_set_features(struct virtio_net *dev, uint64_t features)
 		dev->vid,
 		(dev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ? "on" : "off",
 		(dev->features & (1ULL << VIRTIO_F_VERSION_1)) ? "on" : "off");
+
+	if ((dev->flags & VIRTIO_DEV_BUILTIN_VIRTIO_NET) &&
+	    !(dev->features & (1ULL << VIRTIO_NET_F_MQ))) {
+		/*
+		 * Remove all but first queue pair if MQ hasn't been
+		 * negotiated. This is safe because the device is not
+		 * running at this stage.
+		 */
+		while (dev->nr_vring > 2) {
+			struct vhost_virtqueue *vq;
+
+			vq = dev->virtqueue[--dev->nr_vring];
+			if (!vq)
+				continue;
+
+			dev->virtqueue[dev->nr_vring] = NULL;
+			cleanup_vq(vq, 1);
+			free_vq(vq);
+		}
+	}
 
 	return 0;
 }
@@ -227,6 +233,7 @@ vhost_user_set_vring_num(struct virtio_net *dev,
 				"zero copy is force disabled\n");
 			dev->dequeue_zero_copy = 0;
 		}
+		TAILQ_INIT(&vq->zmbuf_list);
 	}
 
 	vq->shadow_used_ring = rte_malloc(NULL,
@@ -261,6 +268,9 @@ numa_realloc(struct virtio_net *dev, int index)
 	int oldnode, newnode;
 	struct virtio_net *old_dev;
 	struct vhost_virtqueue *old_vq, *vq;
+	struct zcopy_mbuf *new_zmbuf;
+	struct vring_used_elem *new_shadow_used_ring;
+	struct batch_copy_elem *new_batch_copy_elems;
 	int ret;
 
 	old_dev = dev;
@@ -285,6 +295,33 @@ numa_realloc(struct virtio_net *dev, int index)
 			return dev;
 
 		memcpy(vq, old_vq, sizeof(*vq));
+		TAILQ_INIT(&vq->zmbuf_list);
+
+		new_zmbuf = rte_malloc_socket(NULL, vq->zmbuf_size *
+			sizeof(struct zcopy_mbuf), 0, newnode);
+		if (new_zmbuf) {
+			rte_free(vq->zmbufs);
+			vq->zmbufs = new_zmbuf;
+		}
+
+		new_shadow_used_ring = rte_malloc_socket(NULL,
+			vq->size * sizeof(struct vring_used_elem),
+			RTE_CACHE_LINE_SIZE,
+			newnode);
+		if (new_shadow_used_ring) {
+			rte_free(vq->shadow_used_ring);
+			vq->shadow_used_ring = new_shadow_used_ring;
+		}
+
+		new_batch_copy_elems = rte_malloc_socket(NULL,
+			vq->size * sizeof(struct batch_copy_elem),
+			RTE_CACHE_LINE_SIZE,
+			newnode);
+		if (new_batch_copy_elems) {
+			rte_free(vq->batch_copy_elems);
+			vq->batch_copy_elems = new_batch_copy_elems;
+		}
+
 		rte_free(old_vq);
 	}
 
@@ -526,7 +563,7 @@ add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 	uint64_t host_phys_addr;
 	uint64_t size;
 
-	host_phys_addr = rte_mem_virt2phy((void *)(uintptr_t)host_user_addr);
+	host_phys_addr = rte_mem_virt2iova((void *)(uintptr_t)host_user_addr);
 	size = page_size - (guest_phys_addr & (page_size - 1));
 	size = RTE_MIN(size, reg_size);
 
@@ -537,7 +574,7 @@ add_guest_pages(struct virtio_net *dev, struct rte_vhost_mem_region *reg,
 
 	while (reg_size > 0) {
 		size = RTE_MIN(reg_size, page_size);
-		host_phys_addr = rte_mem_virt2phy((void *)(uintptr_t)
+		host_phys_addr = rte_mem_virt2iova((void *)(uintptr_t)
 						  host_user_addr);
 		add_one_guest_page(dev, guest_phys_addr, host_phys_addr, size);
 
@@ -573,6 +610,30 @@ dump_guest_pages(struct virtio_net *dev)
 #define dump_guest_pages(dev)
 #endif
 
+static bool
+vhost_memory_changed(struct VhostUserMemory *new,
+		     struct rte_vhost_memory *old)
+{
+	uint32_t i;
+
+	if (new->nregions != old->nregions)
+		return true;
+
+	for (i = 0; i < new->nregions; ++i) {
+		VhostUserMemoryRegion *new_r = &new->regions[i];
+		struct rte_vhost_mem_region *old_r = &old->regions[i];
+
+		if (new_r->guest_phys_addr != old_r->guest_phys_addr)
+			return true;
+		if (new_r->memory_size != old_r->size)
+			return true;
+		if (new_r->userspace_addr != old_r->guest_user_addr)
+			return true;
+	}
+
+	return false;
+}
+
 static int
 vhost_user_set_mem_table(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 {
@@ -584,6 +645,16 @@ vhost_user_set_mem_table(struct virtio_net *dev, struct VhostUserMsg *pmsg)
 	uint64_t alignment;
 	uint32_t i;
 	int fd;
+
+	if (dev->mem && !vhost_memory_changed(&memory, dev->mem)) {
+		RTE_LOG(INFO, VHOST_CONFIG,
+			"(%d) memory regions not changed\n", dev->vid);
+
+		for (i = 0; i < memory.nregions; i++)
+			close(pmsg->fds[i]);
+
+		return 0;
+	}
 
 	if (dev->mem) {
 		free_mem_region(dev);
@@ -755,15 +826,12 @@ vhost_user_set_vring_kick(struct virtio_net **pdev, struct VhostUserMsg *pmsg)
 	RTE_LOG(INFO, VHOST_CONFIG,
 		"vring kick idx:%d file:%d\n", file.index, file.fd);
 
-	/*
-	 * Interpret ring addresses only when ring is started and enabled.
-	 * This is now if protocol features aren't supported.
-	 */
-	if (!(dev->features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
-		*pdev = dev = translate_ring_addresses(dev, file.index);
-		if (!dev)
-			return;
-	}
+	/* Interpret ring addresses only when ring is started. */
+	dev = translate_ring_addresses(dev, file.index);
+	if (!dev)
+		return;
+
+	*pdev = dev;
 
 	vq = dev->virtqueue[file.index];
 
@@ -845,28 +913,14 @@ vhost_user_get_vring_base(struct virtio_net *dev,
  * enable the virtio queue pair.
  */
 static int
-vhost_user_set_vring_enable(struct virtio_net **pdev,
+vhost_user_set_vring_enable(struct virtio_net *dev,
 			    VhostUserMsg *msg)
 {
-	struct virtio_net *dev = *pdev;
 	int enable = (int)msg->payload.state.num;
 
 	RTE_LOG(INFO, VHOST_CONFIG,
 		"set queue enable: %d to qp idx: %d\n",
 		enable, msg->payload.state.index);
-
-	/*
-	 * Interpret ring addresses only when ring is started and enabled.
-	 * This is now if protocol features are supported.
-	 */
-	if (enable && (dev->features &
-				(1ULL << VHOST_USER_F_PROTOCOL_FEATURES))) {
-		dev = translate_ring_addresses(dev, msg->payload.state.index);
-		if (!dev)
-			return -1;
-
-		*pdev = dev;
-	}
 
 	if (dev->notify_ops->vring_state_changed)
 		dev->notify_ops->vring_state_changed(dev->vid,
@@ -875,6 +929,27 @@ vhost_user_set_vring_enable(struct virtio_net **pdev,
 	dev->virtqueue[msg->payload.state.index]->enabled = enable;
 
 	return 0;
+}
+
+static void
+vhost_user_get_protocol_features(struct virtio_net *dev,
+				 struct VhostUserMsg *msg)
+{
+	uint64_t features, protocol_features = VHOST_USER_PROTOCOL_FEATURES;
+
+	rte_vhost_driver_get_features(dev->ifname, &features);
+
+	/*
+	 * REPLY_ACK protocol feature is only mandatory for now
+	 * for IOMMU feature. If IOMMU is explicitly disabled by the
+	 * application, disable also REPLY_ACK feature for older buggy
+	 * Qemu versions (from v2.7.0 to v2.9.0).
+	 */
+	if (!(features & (1ULL << VIRTIO_F_IOMMU_PLATFORM)))
+		protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+	msg->payload.u64 = protocol_features;
+	msg->size = sizeof(msg->payload.u64);
 }
 
 static void
@@ -1186,12 +1261,47 @@ vhost_user_check_and_alloc_queue_pair(struct virtio_net *dev, VhostUserMsg *msg)
 	return alloc_vring_queue(dev, vring_idx);
 }
 
+static void
+vhost_user_lock_all_queue_pairs(struct virtio_net *dev)
+{
+	unsigned int i = 0;
+	unsigned int vq_num = 0;
+
+	while (vq_num < dev->nr_vring) {
+		struct vhost_virtqueue *vq = dev->virtqueue[i];
+
+		if (vq) {
+			rte_spinlock_lock(&vq->access_lock);
+			vq_num++;
+		}
+		i++;
+	}
+}
+
+static void
+vhost_user_unlock_all_queue_pairs(struct virtio_net *dev)
+{
+	unsigned int i = 0;
+	unsigned int vq_num = 0;
+
+	while (vq_num < dev->nr_vring) {
+		struct vhost_virtqueue *vq = dev->virtqueue[i];
+
+		if (vq) {
+			rte_spinlock_unlock(&vq->access_lock);
+			vq_num++;
+		}
+		i++;
+	}
+}
+
 int
 vhost_user_msg_handler(int vid, int fd)
 {
 	struct virtio_net *dev;
 	struct VhostUserMsg msg;
 	int ret;
+	int unlock_required = 0;
 
 	dev = get_device(vid);
 	if (dev == NULL)
@@ -1237,6 +1347,38 @@ vhost_user_msg_handler(int vid, int fd)
 		return -1;
 	}
 
+	/*
+	 * Note: we don't lock all queues on VHOST_USER_GET_VRING_BASE
+	 * and VHOST_USER_RESET_OWNER, since it is sent when virtio stops
+	 * and device is destroyed. destroy_device waits for queues to be
+	 * inactive, so it is safe. Otherwise taking the access_lock
+	 * would cause a dead lock.
+	 */
+	switch (msg.request.master) {
+	case VHOST_USER_SET_FEATURES:
+	case VHOST_USER_SET_PROTOCOL_FEATURES:
+	case VHOST_USER_SET_OWNER:
+	case VHOST_USER_SET_MEM_TABLE:
+	case VHOST_USER_SET_LOG_BASE:
+	case VHOST_USER_SET_LOG_FD:
+	case VHOST_USER_SET_VRING_NUM:
+	case VHOST_USER_SET_VRING_ADDR:
+	case VHOST_USER_SET_VRING_BASE:
+	case VHOST_USER_SET_VRING_KICK:
+	case VHOST_USER_SET_VRING_CALL:
+	case VHOST_USER_SET_VRING_ERR:
+	case VHOST_USER_SET_VRING_ENABLE:
+	case VHOST_USER_SEND_RARP:
+	case VHOST_USER_NET_SET_MTU:
+	case VHOST_USER_SET_SLAVE_REQ_FD:
+		vhost_user_lock_all_queue_pairs(dev);
+		unlock_required = 1;
+		break;
+	default:
+		break;
+
+	}
+
 	switch (msg.request.master) {
 	case VHOST_USER_GET_FEATURES:
 		msg.payload.u64 = vhost_user_get_features(dev);
@@ -1244,12 +1386,13 @@ vhost_user_msg_handler(int vid, int fd)
 		send_vhost_reply(fd, &msg);
 		break;
 	case VHOST_USER_SET_FEATURES:
-		vhost_user_set_features(dev, msg.payload.u64);
+		ret = vhost_user_set_features(dev, msg.payload.u64);
+		if (ret)
+			return -1;
 		break;
 
 	case VHOST_USER_GET_PROTOCOL_FEATURES:
-		msg.payload.u64 = VHOST_USER_PROTOCOL_FEATURES;
-		msg.size = sizeof(msg.payload.u64);
+		vhost_user_get_protocol_features(dev, &msg);
 		send_vhost_reply(fd, &msg);
 		break;
 	case VHOST_USER_SET_PROTOCOL_FEATURES:
@@ -1315,7 +1458,7 @@ vhost_user_msg_handler(int vid, int fd)
 		break;
 
 	case VHOST_USER_SET_VRING_ENABLE:
-		vhost_user_set_vring_enable(&dev, &msg);
+		vhost_user_set_vring_enable(dev, &msg);
 		break;
 	case VHOST_USER_SEND_RARP:
 		vhost_user_send_rarp(dev, &msg);
@@ -1338,6 +1481,9 @@ vhost_user_msg_handler(int vid, int fd)
 		break;
 
 	}
+
+	if (unlock_required)
+		vhost_user_unlock_all_queue_pairs(dev);
 
 	if (msg.flags & VHOST_USER_NEED_REPLY) {
 		msg.payload.u64 = !!ret;

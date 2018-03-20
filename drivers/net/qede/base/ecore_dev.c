@@ -28,7 +28,6 @@
 #include "mcp_public.h"
 #include "ecore_iro.h"
 #include "nvm_cfg.h"
-#include "ecore_dev_api.h"
 #include "ecore_dcbx.h"
 #include "ecore_l2.h"
 
@@ -3183,7 +3182,7 @@ static enum _ecore_status_t ecore_hw_get_resc(struct ecore_hwfn *p_hwfn,
 	 * resources allocation queries should be atomic. Since several PFs can
 	 * run in parallel - a resource lock is needed.
 	 * If either the resource lock or resource set value commands are not
-	 * supported - skip the the max values setting, release the lock if
+	 * supported - skip the max values setting, release the lock if
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
 	 * Old drivers that don't acquire the lock can run in parallel, and
@@ -4634,7 +4633,7 @@ enum _ecore_status_t ecore_llh_add_mac_filter(struct ecore_hwfn *p_hwfn,
 					  struct ecore_ptt *p_ptt, u8 *p_filter)
 {
 	u32 high, low, entry_num;
-	enum _ecore_status_t rc;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	if (!OSAL_TEST_BIT(ECORE_MF_LLH_MAC_CLSS,
 			   &p_hwfn->p_dev->mf_bits))
@@ -4658,7 +4657,7 @@ enum _ecore_status_t ecore_llh_add_mac_filter(struct ecore_hwfn *p_hwfn,
 		   p_filter[0], p_filter[1], p_filter[2], p_filter[3],
 		   p_filter[4], p_filter[5], entry_num);
 
-	return ECORE_SUCCESS;
+	return rc;
 }
 
 static enum _ecore_status_t
@@ -4702,7 +4701,7 @@ void ecore_llh_remove_mac_filter(struct ecore_hwfn *p_hwfn,
 			     struct ecore_ptt *p_ptt, u8 *p_filter)
 {
 	u32 high, low, entry_num;
-	enum _ecore_status_t rc;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	if (!OSAL_TEST_BIT(ECORE_MF_LLH_MAC_CLSS,
 			   &p_hwfn->p_dev->mf_bits))
@@ -4777,11 +4776,11 @@ ecore_llh_add_protocol_filter(struct ecore_hwfn *p_hwfn,
 			      enum ecore_llh_port_filter_type_t type)
 {
 	u32 high, low, entry_num;
-	enum _ecore_status_t rc;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	if (!OSAL_TEST_BIT(ECORE_MF_LLH_PROTO_CLSS,
 			   &p_hwfn->p_dev->mf_bits))
-		return ECORE_SUCCESS;
+		return rc;
 
 	high = 0;
 	low = 0;
@@ -4854,7 +4853,7 @@ ecore_llh_add_protocol_filter(struct ecore_hwfn *p_hwfn,
 		break;
 	}
 
-	return ECORE_SUCCESS;
+	return rc;
 }
 
 static enum _ecore_status_t
@@ -4921,7 +4920,7 @@ ecore_llh_remove_protocol_filter(struct ecore_hwfn *p_hwfn,
 				 enum ecore_llh_port_filter_type_t type)
 {
 	u32 high, low, entry_num;
-	enum _ecore_status_t rc;
+	enum _ecore_status_t rc = ECORE_SUCCESS;
 
 	if (!OSAL_TEST_BIT(ECORE_MF_LLH_PROTO_CLSS,
 			   &p_hwfn->p_dev->mf_bits))

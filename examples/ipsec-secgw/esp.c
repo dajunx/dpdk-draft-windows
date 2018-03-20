@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2016-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2016-2017 Intel Corporation
  */
 
 #include <stdint.h>
@@ -106,12 +77,12 @@ esp_inbound(struct rte_mbuf *m, struct ipsec_sa *sa,
 		aad = get_aad(m);
 		memcpy(aad, iv - sizeof(struct esp_hdr), 8);
 		sym_cop->aead.aad.data = aad;
-		sym_cop->aead.aad.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->aead.aad.phys_addr = rte_pktmbuf_iova_offset(m,
 				aad - rte_pktmbuf_mtod(m, uint8_t *));
 
 		sym_cop->aead.digest.data = rte_pktmbuf_mtod_offset(m, void*,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
-		sym_cop->aead.digest.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->aead.digest.phys_addr = rte_pktmbuf_iova_offset(m,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
 	} else {
 		sym_cop->cipher.data.offset =  ip_hdr_len + sizeof(struct esp_hdr) +
@@ -157,7 +128,7 @@ esp_inbound(struct rte_mbuf *m, struct ipsec_sa *sa,
 
 		sym_cop->auth.digest.data = rte_pktmbuf_mtod_offset(m, void*,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
-		sym_cop->auth.digest.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->auth.digest.phys_addr = rte_pktmbuf_iova_offset(m,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
 	}
 
@@ -178,7 +149,8 @@ esp_inbound_post(struct rte_mbuf *m, struct ipsec_sa *sa,
 	RTE_ASSERT(sa != NULL);
 	RTE_ASSERT(cop != NULL);
 
-	if (sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO) {
+	if ((sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) ||
+			(sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO)) {
 		if (m->ol_flags & PKT_RX_SEC_OFFLOAD) {
 			if (m->ol_flags & PKT_RX_SEC_OFFLOAD_FAILED)
 				cop->status = RTE_CRYPTO_OP_STATUS_ERROR;
@@ -405,12 +377,12 @@ esp_outbound(struct rte_mbuf *m, struct ipsec_sa *sa,
 		aad = get_aad(m);
 		memcpy(aad, esp, 8);
 		sym_cop->aead.aad.data = aad;
-		sym_cop->aead.aad.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->aead.aad.phys_addr = rte_pktmbuf_iova_offset(m,
 				aad - rte_pktmbuf_mtod(m, uint8_t *));
 
 		sym_cop->aead.digest.data = rte_pktmbuf_mtod_offset(m, uint8_t *,
 			rte_pktmbuf_pkt_len(m) - sa->digest_len);
-		sym_cop->aead.digest.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->aead.digest.phys_addr = rte_pktmbuf_iova_offset(m,
 			rte_pktmbuf_pkt_len(m) - sa->digest_len);
 	} else {
 		switch (sa->cipher_algo) {
@@ -458,7 +430,7 @@ esp_outbound(struct rte_mbuf *m, struct ipsec_sa *sa,
 
 		sym_cop->auth.digest.data = rte_pktmbuf_mtod_offset(m, uint8_t *,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
-		sym_cop->auth.digest.phys_addr = rte_pktmbuf_mtophys_offset(m,
+		sym_cop->auth.digest.phys_addr = rte_pktmbuf_iova_offset(m,
 				rte_pktmbuf_pkt_len(m) - sa->digest_len);
 	}
 
@@ -474,7 +446,8 @@ esp_outbound_post(struct rte_mbuf *m,
 	RTE_ASSERT(m != NULL);
 	RTE_ASSERT(sa != NULL);
 
-	if (sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO) {
+	if ((sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_PROTOCOL) ||
+			(sa->type == RTE_SECURITY_ACTION_TYPE_INLINE_CRYPTO)) {
 		m->ol_flags |= PKT_TX_SEC_OFFLOAD;
 	} else {
 		RTE_ASSERT(cop != NULL);

@@ -1,32 +1,5 @@
-..  BSD LICENSE
-    Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-    * Neither the name of Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+..  SPDX-License-Identifier: BSD-3-Clause
+    Copyright(c) 2010-2014 Intel Corporation.
 
 .. _Environment_Abstraction_Layer:
 
@@ -99,6 +72,14 @@ It consist of calls to the pthread library (more specifically, pthread_self(), p
     The creation and initialization functions for these objects are not multi-thread safe.
     However, once initialized, the objects themselves can safely be used in multiple threads simultaneously.
 
+Shutdown and Cleanup
+~~~~~~~~~~~~~~~~~~~~
+
+During the initialization of EAL resources such as hugepage backed memory can be
+allocated by core components.  The memory allocated during ``rte_eal_init()``
+can be released by calling the ``rte_eal_cleanup()`` function. Refer to the
+API documentation for details.
+
 Multi-process Support
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -153,7 +134,7 @@ which can trigger the generation of a core file, readable by gdb.
 CPU Feature Identification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The EAL can query the CPU at runtime (using the rte_cpu_get_feature() function) to determine which CPU features are available.
+The EAL can query the CPU at runtime (using the rte_cpu_get_features() function) to determine which CPU features are available.
 
 User Space Interrupt Event
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -309,7 +290,7 @@ All these impacts are mentioned in :ref:`known_issue_label` section.
 Public Thread API
 ~~~~~~~~~~~~~~~~~
 
-There are two public APIs ``rte_thread_set_affinity()`` and ``rte_pthread_get_affinity()`` introduced for threads.
+There are two public APIs ``rte_thread_set_affinity()`` and ``rte_thread_get_affinity()`` introduced for threads.
 When they're used in any pthread context, the Thread Local Storage(TLS) will be set/get.
 
 Those TLS include *_cpuset* and *_socket_id*:

@@ -37,6 +37,7 @@ RTE_TARGET ?= x86_64-native-linuxapp-gcc
 
 include $(RTE_SDK)/mk/rte.vars.mk
 
+DIRS-$(CONFIG_RTE_LIBRTE_BBDEV) += bbdev_app
 DIRS-$(CONFIG_RTE_LIBRTE_PMD_BOND) += bond
 DIRS-y += cmdline
 DIRS-$(CONFIG_RTE_LIBRTE_DISTRIBUTOR) += distributor
@@ -44,6 +45,7 @@ DIRS-y += ethtool
 DIRS-y += exception_path
 DIRS-$(CONFIG_RTE_LIBRTE_EFD) += server_node_efd
 DIRS-$(CONFIG_RTE_LIBRTE_FLOW_CLASSIFY) += flow_classify
+DIRS-y += flow_filtering
 DIRS-y += helloworld
 DIRS-$(CONFIG_RTE_LIBRTE_PIPELINE) += ip_pipeline
 ifeq ($(CONFIG_RTE_LIBRTE_LPM),y)
@@ -101,6 +103,6 @@ $(info vm_power_manager requires libvirt >= 0.9.3)
 endif
 endif
 
-DIRS-y += eventdev_pipeline_sw_pmd
+DIRS-y += eventdev_pipeline
 
 include $(RTE_SDK)/mk/rte.extsubdir.mk

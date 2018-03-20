@@ -1,32 +1,5 @@
-..  BSD LICENSE
-    Copyright(c) 2010-2016 Intel Corporation. All rights reserved.
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-    * Neither the name of Intel Corporation nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+..  SPDX-License-Identifier: BSD-3-Clause
+    Copyright(c) 2010-2016 Intel Corporation.
 
 Vhost Library
 =============
@@ -109,6 +82,20 @@ The following is an overview of some key Vhost API functions:
       more page segments. To make it simple, DPDK vhost does a linear search
       of those segments, thus the fewer the segments, the quicker we will get
       the mapping. NOTE: we may speed it by using tree searching in future.
+
+  - ``RTE_VHOST_USER_IOMMU_SUPPORT``
+
+    IOMMU support will be enabled when this flag is set. It is disabled by
+    default.
+
+    Enabling this flag makes possible to use guest vIOMMU to protect vhost
+    from accessing memory the virtio device isn't allowed to, when the feature
+    is negotiated and an IOMMU device is declared.
+
+    However, this feature enables vhost-user's reply-ack protocol feature,
+    which implementation is buggy in Qemu v2.7.0-v2.9.0 when doing multiqueue.
+    Enabling this flag with these Qemu version results in Qemu being blocked
+    when multiple queue pairs are declared.
 
 * ``rte_vhost_driver_set_features(path, features)``
 

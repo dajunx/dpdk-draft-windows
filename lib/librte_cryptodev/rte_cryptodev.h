@@ -49,6 +49,7 @@ extern "C" {
 #include "rte_crypto.h"
 #include "rte_dev.h"
 #include <rte_common.h>
+#include <rte_config.h>
 
 extern const char **rte_cyptodev_names;
 
@@ -110,7 +111,7 @@ extern const char **rte_cyptodev_names;
  *   to calculate address from.
  */
 #define rte_crypto_op_ctophys_offset(c, o)	\
-	(phys_addr_t)((c)->phys_addr + (o))
+	(rte_iova_t)((c)->phys_addr + (o))
 
 /**
  * Crypto parameters range description
@@ -433,23 +434,6 @@ struct rte_cryptodev_stats {
 
 #define RTE_CRYPTODEV_NAME_MAX_LEN	(64)
 /**< Max length of name of crypto PMD */
-
-/**
- * @deprecated
- *
- * Create a virtual crypto device
- *
- * @param	name	Cryptodev PMD name of device to be created.
- * @param	args	Options arguments for device.
- *
- * @return
- * - On successful creation of the cryptodev the device index is returned,
- *   which will be between 0 and rte_cryptodev_count().
- * - In the case of a failure, returns -1.
- */
-__rte_deprecated
-extern int
-rte_cryptodev_create_vdev(const char *name, const char *args);
 
 /**
  * Get the device identifier for the named crypto device.
@@ -907,7 +891,10 @@ rte_cryptodev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
 }
 
 
-/** Cryptodev symmetric crypto session */
+/** Cryptodev symmetric crypto session
+ * Each session is derived from a fixed xform chain. Therefore each session
+ * has a fixed algo, key, op-type, digest_len etc.
+ */
 struct rte_cryptodev_sym_session {
 	__extension__ void *sess_private_data[0];
 	/**< Private session material */

@@ -101,8 +101,8 @@ struct bnxt_rx_ring_info {
 	struct bnxt_sw_rx_bd	*rx_buf_ring; /* sw ring */
 	struct bnxt_sw_rx_bd	*ag_buf_ring; /* sw ring */
 
-	phys_addr_t		rx_desc_mapping;
-	phys_addr_t		ag_desc_mapping;
+	rte_iova_t		rx_desc_mapping;
+	rte_iova_t		ag_desc_mapping;
 
 	struct bnxt_ring	*rx_ring_struct;
 	struct bnxt_ring	*ag_ring_struct;
@@ -120,5 +120,6 @@ uint16_t bnxt_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 void bnxt_free_rx_rings(struct bnxt *bp);
 int bnxt_init_rx_ring_struct(struct bnxt_rx_queue *rxq, unsigned int socket_id);
 int bnxt_init_one_rx_ring(struct bnxt_rx_queue *rxq);
-
+int bnxt_rx_queue_start(struct rte_eth_dev *dev, uint16_t rx_queue_id);
+int bnxt_rx_queue_stop(struct rte_eth_dev *dev, uint16_t rx_queue_id);
 #endif

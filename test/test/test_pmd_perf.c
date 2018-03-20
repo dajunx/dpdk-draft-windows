@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 
@@ -48,8 +19,8 @@
 #define NB_SOCKETS                      (2)
 #define MEMPOOL_CACHE_SIZE 250
 #define MAX_PKT_BURST                   (32)
-#define RTE_TEST_RX_DESC_DEFAULT        (128)
-#define RTE_TEST_TX_DESC_DEFAULT        (512)
+#define RTE_TEST_RX_DESC_DEFAULT        (1024)
+#define RTE_TEST_TX_DESC_DEFAULT        (1024)
 #define RTE_PORT_ALL            (~(uint16_t)0x0)
 
 /* how long test would take at full line rate */
@@ -321,10 +292,10 @@ alloc_lcore(uint16_t socketid)
 	return (uint16_t)-1;
 }
 
-volatile uint64_t stop;
-uint64_t count;
-uint64_t drop;
-uint64_t idle;
+static volatile uint64_t stop;
+static uint64_t count;
+static uint64_t drop;
+static uint64_t idle;
 
 static void
 reset_count(void)
@@ -557,7 +528,7 @@ main_loop(__rte_unused void *args)
 	return 0;
 }
 
-rte_atomic64_t start;
+static rte_atomic64_t start;
 
 static inline int
 poll_burst(void *args)
@@ -572,6 +543,7 @@ poll_burst(void *args)
 	unsigned i, portid, nb_rx = 0;
 	uint64_t total;
 	uint64_t timeout = MAX_IDLE;
+	int num[RTE_MAX_ETHPORTS];
 
 	lcore_id = rte_lcore_id();
 	conf = &lcore_conf[lcore_id];
@@ -591,6 +563,7 @@ poll_burst(void *args)
 	for (i = 0; i < conf->nb_ports; i++) {
 		portid = conf->portlist[i];
 		next[portid] = i * pkt_per_port;
+		num[portid] = pkt_per_port;
 	}
 
 	while (!rte_atomic64_read(&start))
@@ -601,8 +574,8 @@ poll_burst(void *args)
 		for (i = 0; i < conf->nb_ports; i++) {
 			portid = conf->portlist[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
-						 &pkts_burst[next[portid]],
-						 MAX_PKT_BURST);
+					&pkts_burst[next[portid]],
+					RTE_MIN(MAX_PKT_BURST, num[portid]));
 			if (unlikely(nb_rx == 0)) {
 				timeout--;
 				if (unlikely(timeout == 0))
@@ -610,6 +583,7 @@ poll_burst(void *args)
 				continue;
 			}
 			next[portid] += nb_rx;
+			num[portid] -= nb_rx;
 			total -= nb_rx;
 		}
 	}
@@ -618,7 +592,6 @@ timeout:
 
 	printf("%"PRIu64" packets lost, IDLE %"PRIu64" times\n",
 	       total, MAX_IDLE - timeout);
-
 	/* clean up */
 	total = pkt_per_port * conf->nb_ports - total;
 	for (i = 0; i < total; i++)
@@ -644,7 +617,7 @@ exec_burst(uint32_t flags, int lcore)
 	conf = &lcore_conf[lcore];
 
 	pkt_per_port = MAX_TRAFFIC_BURST;
-	num = pkt_per_port;
+	num = pkt_per_port * conf->nb_ports;
 
 	rte_atomic64_init(&start);
 
@@ -661,11 +634,12 @@ exec_burst(uint32_t flags, int lcore)
 		nb_tx = RTE_MIN(MAX_PKT_BURST, num);
 		for (i = 0; i < conf->nb_ports; i++) {
 			portid = conf->portlist[i];
-			rte_eth_tx_burst(portid, 0,
+			nb_tx = rte_eth_tx_burst(portid, 0,
 					 &tx_burst[idx], nb_tx);
 			idx += nb_tx;
+			num -= nb_tx;
 		}
-		num -= nb_tx;
+
 	}
 
 	sleep(5);

@@ -60,9 +60,7 @@ DPDK_2.0 {
 	rte_malloc_set_limit;
 	rte_malloc_socket;
 	rte_malloc_validate;
-	rte_malloc_virt2phy;
 	rte_mem_lock_page;
-	rte_mem_phy2mch;
 	rte_mem_virt2phy;
 	rte_memdump;
 	rte_memory_get_nchannel;
@@ -126,7 +124,6 @@ DPDK_16.04 {
 DPDK_16.07 {
 	global:
 
-	pci_get_sysfs_path;
 	rte_keepalive_mark_sleep;
 	rte_keepalive_register_relay_callback;
 	rte_rtm_supported;
@@ -166,10 +163,6 @@ DPDK_17.05 {
 	rte_log_set_global_level;
 	rte_log_set_level;
 	rte_log_set_level_regexp;
-	rte_vdev_init;
-	rte_vdev_register;
-	rte_vdev_uninit;
-	rte_vdev_unregister;
 	vfio_get_container_fd;
 	vfio_get_group_fd;
 	vfio_get_group_no;
@@ -186,18 +179,60 @@ DPDK_17.08 {
 
 } DPDK_17.05;
 
+DPDK_17.11 {
+	global:
+
+	rte_eal_create_uio_dev;
+	rte_bus_get_iommu_class;
+	rte_eal_has_pci;
+	rte_eal_iova_mode;
+	rte_eal_mbuf_default_mempool_ops;
+	rte_eal_using_phys_addrs;
+	rte_eal_vfio_intr_mode;
+	rte_lcore_has_role;
+	rte_malloc_virt2iova;
+	rte_mem_virt2iova;
+	rte_vfio_enable;
+	rte_vfio_is_enabled;
+	rte_vfio_noiommu_is_enabled;
+	rte_vfio_release_device;
+	rte_vfio_setup_device;
+
+} DPDK_17.08;
+
+DPDK_18.02 {
+	global:
+
+	rte_hypervisor_get;
+	rte_hypervisor_get_name;
+	rte_vfio_clear_group;
+	rte_reciprocal_value;
+	rte_reciprocal_value_u64;
+
+}  DPDK_17.11;
+
 EXPERIMENTAL {
 	global:
 
+	rte_eal_cleanup;
 	rte_eal_devargs_insert;
 	rte_eal_devargs_parse;
 	rte_eal_devargs_remove;
 	rte_eal_hotplug_add;
 	rte_eal_hotplug_remove;
+	rte_eal_mbuf_user_pool_ops;
+	rte_mp_action_register;
+	rte_mp_action_unregister;
+	rte_mp_sendmsg;
+	rte_mp_request;
+	rte_mp_reply;
+	rte_service_attr_get;
+	rte_service_attr_reset_all;
 	rte_service_component_register;
 	rte_service_component_unregister;
 	rte_service_component_runstate_set;
 	rte_service_dump;
+	rte_service_finalize;
 	rte_service_get_by_id;
 	rte_service_get_by_name;
 	rte_service_get_count;
@@ -213,7 +248,6 @@ EXPERIMENTAL {
 	rte_service_map_lcore_get;
 	rte_service_map_lcore_set;
 	rte_service_probe_capability;
-	rte_service_reset;
 	rte_service_run_iter_on_app_lcore;
 	rte_service_runstate_get;
 	rte_service_runstate_set;
@@ -221,24 +255,4 @@ EXPERIMENTAL {
 	rte_service_set_stats_enable;
 	rte_service_start_with_defaults;
 
-} DPDK_17.08;
-
-DPDK_17.11 {
-	global:
-
-	rte_eal_create_uio_dev;
-	rte_bus_get_iommu_class;
-	rte_eal_has_pci;
-	rte_eal_iova_mode;
-	rte_eal_mbuf_default_mempool_ops;
-	rte_eal_using_phys_addrs;
-	rte_eal_vfio_intr_mode;
-	rte_lcore_has_role;
-	rte_memcpy_ptr;
-	vfio_enable;
-	vfio_is_enabled;
-	vfio_noiommu_is_enabled;
-	vfio_release_device;
-	vfio_setup_device;
-
-} DPDK_17.08;
+} DPDK_18.02;

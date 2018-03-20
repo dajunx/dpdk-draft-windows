@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <string.h>
@@ -366,7 +337,7 @@ pci_scan_one(const char *dirname, const struct rte_pci_addr *addr)
 		int ret;
 
 		TAILQ_FOREACH(dev2, &rte_pci_bus.device_list, next) {
-			ret = pci_addr_cmp(&dev->addr, &dev2->addr);
+			ret = rte_pci_addr_cmp(&dev->addr, &dev2->addr);
 			if (ret > 0)
 				continue;
 
@@ -395,7 +366,7 @@ pci_update_device(const struct rte_pci_addr *addr)
 	char filename[PATH_MAX];
 
 	snprintf(filename, sizeof(filename), "%s/" PCI_PRI_FMT,
-		 pci_get_sysfs_path(), addr->domain, addr->bus, addr->devid,
+		 rte_pci_get_sysfs_path(), addr->domain, addr->bus, addr->devid,
 		 addr->function);
 
 	return pci_scan_one(filename, addr);
@@ -468,7 +439,7 @@ rte_pci_scan(void)
 		RTE_LOG(DEBUG, EAL, "VFIO PCI modules not loaded\n");
 #endif
 
-	dir = opendir(pci_get_sysfs_path());
+	dir = opendir(rte_pci_get_sysfs_path());
 	if (dir == NULL) {
 		RTE_LOG(ERR, EAL, "%s(): opendir failed: %s\n",
 			__func__, strerror(errno));
@@ -483,7 +454,7 @@ rte_pci_scan(void)
 			continue;
 
 		snprintf(dirname, sizeof(dirname), "%s/%s",
-				pci_get_sysfs_path(), e->d_name);
+				rte_pci_get_sysfs_path(), e->d_name);
 
 		if (pci_scan_one(dirname, &addr) < 0)
 			goto error;
@@ -576,6 +547,82 @@ pci_one_device_has_iova_va(void)
 	return 0;
 }
 
+#if defined(RTE_ARCH_X86)
+static bool
+pci_one_device_iommu_support_va(struct rte_pci_device *dev)
+{
+#define VTD_CAP_MGAW_SHIFT	16
+#define VTD_CAP_MGAW_MASK	(0x3fULL << VTD_CAP_MGAW_SHIFT)
+#define X86_VA_WIDTH 47 /* From Documentation/x86/x86_64/mm.txt */
+	struct rte_pci_addr *addr = &dev->addr;
+	char filename[PATH_MAX];
+	FILE *fp;
+	uint64_t mgaw, vtd_cap_reg = 0;
+
+	snprintf(filename, sizeof(filename),
+		 "%s/" PCI_PRI_FMT "/iommu/intel-iommu/cap",
+		 rte_pci_get_sysfs_path(), addr->domain, addr->bus, addr->devid,
+		 addr->function);
+	if (access(filename, F_OK) == -1) {
+		/* We don't have an Intel IOMMU, assume VA supported*/
+		return true;
+	}
+
+	/* We have an intel IOMMU */
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		RTE_LOG(ERR, EAL, "%s(): can't open %s\n", __func__, filename);
+		return false;
+	}
+
+	if (fscanf(fp, "%" PRIx64, &vtd_cap_reg) != 1) {
+		RTE_LOG(ERR, EAL, "%s(): can't read %s\n", __func__, filename);
+		fclose(fp);
+		return false;
+	}
+
+	fclose(fp);
+
+	mgaw = ((vtd_cap_reg & VTD_CAP_MGAW_MASK) >> VTD_CAP_MGAW_SHIFT) + 1;
+	if (mgaw < X86_VA_WIDTH)
+		return false;
+
+	return true;
+}
+#elif defined(RTE_ARCH_PPC_64)
+static bool
+pci_one_device_iommu_support_va(__rte_unused struct rte_pci_device *dev)
+{
+	return false;
+}
+#else
+static bool
+pci_one_device_iommu_support_va(__rte_unused struct rte_pci_device *dev)
+{
+	return true;
+}
+#endif
+
+/*
+ * All devices IOMMUs support VA as IOVA
+ */
+static bool
+pci_devices_iommu_support_va(void)
+{
+	struct rte_pci_device *dev = NULL;
+	struct rte_pci_driver *drv = NULL;
+
+	FOREACH_DRIVER_ON_PCIBUS(drv) {
+		FOREACH_DEVICE_ON_PCIBUS(dev) {
+			if (!rte_pci_match(drv, dev))
+				continue;
+			if (!pci_one_device_iommu_support_va(dev))
+				return false;
+		}
+	}
+	return true;
+}
+
 /*
  * Get iommu class of PCI devices on the bus.
  */
@@ -586,6 +633,7 @@ rte_pci_get_iommu_class(void)
 	bool is_vfio_noiommu_enabled = true;
 	bool has_iova_va;
 	bool is_bound_uio;
+	bool iommu_no_va;
 
 	is_bound = pci_one_device_is_bound();
 	if (!is_bound)
@@ -593,12 +641,14 @@ rte_pci_get_iommu_class(void)
 
 	has_iova_va = pci_one_device_has_iova_va();
 	is_bound_uio = pci_one_device_bound_uio();
+	iommu_no_va = !pci_devices_iommu_support_va();
 #ifdef VFIO_PRESENT
-	is_vfio_noiommu_enabled = vfio_noiommu_is_enabled() == true ?
+	is_vfio_noiommu_enabled = rte_vfio_noiommu_is_enabled() == true ?
 					true : false;
 #endif
 
-	if (has_iova_va && !is_bound_uio && !is_vfio_noiommu_enabled)
+	if (has_iova_va && !is_bound_uio && !is_vfio_noiommu_enabled &&
+			!iommu_no_va)
 		return RTE_IOVA_VA;
 
 	if (has_iova_va) {
@@ -607,6 +657,8 @@ rte_pci_get_iommu_class(void)
 			RTE_LOG(WARNING, EAL, "vfio-noiommu mode configured\n");
 		if (is_bound_uio)
 			RTE_LOG(WARNING, EAL, "few device bound to UIO\n");
+		if (iommu_no_va)
+			RTE_LOG(WARNING, EAL, "IOMMU does not support IOVA as VA\n");
 	}
 
 	return RTE_IOVA_PA;
@@ -714,7 +766,6 @@ pci_ioport_map(struct rte_pci_device *dev, int bar __rte_unused,
 	if (!found)
 		return -1;
 
-	dev->intr_handle.type = RTE_INTR_HANDLE_UNKNOWN;
 	p->base = start;
 	RTE_LOG(DEBUG, EAL, "PCI Port IO found start=0x%x\n", start);
 

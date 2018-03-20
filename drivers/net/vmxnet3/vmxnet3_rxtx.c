@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2015 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2015 Intel Corporation
  */
 
 #include <sys/queue.h>
@@ -61,7 +32,7 @@
 #include <rte_malloc.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_prefetch.h>
 #include <rte_ip.h>
 #include <rte_udp.h>
@@ -203,6 +174,8 @@ vmxnet3_dev_tx_queue_release(void *txq)
 		vmxnet3_cmd_ring_release(&tq->cmd_ring);
 		/* Release the memzone */
 		rte_memzone_free(tq->mz);
+		/* Release the queue */
+		rte_free(tq);
 	}
 }
 
@@ -223,6 +196,9 @@ vmxnet3_dev_rx_queue_release(void *rxq)
 
 		/* Release the memzone */
 		rte_memzone_free(rq->mz);
+
+		/* Release the queue */
+		rte_free(rq);
 	}
 }
 
@@ -509,7 +485,7 @@ vmxnet3_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 					rte_cpu_to_le_64(txq->data_ring.basePA +
 							 offset);
 			} else {
-				gdesc->txd.addr = rte_mbuf_data_dma_addr(m_seg);
+				gdesc->txd.addr = rte_mbuf_data_iova(m_seg);
 			}
 
 			gdesc->dword[2] = dw2 | m_seg->data_len;
@@ -617,7 +593,7 @@ vmxnet3_renew_desc(vmxnet3_rx_queue_t *rxq, uint8_t ring_id,
 	 */
 	buf_info->m = mbuf;
 	buf_info->len = (uint16_t)(mbuf->buf_len - RTE_PKTMBUF_HEADROOM);
-	buf_info->bufPA = rte_mbuf_data_dma_addr_default(mbuf);
+	buf_info->bufPA = rte_mbuf_data_iova_default(mbuf);
 
 	/* Load Rx Descriptor with the buffer's GPA */
 	rxd->addr = buf_info->bufPA;
@@ -698,6 +674,8 @@ vmxnet3_rx_offload(const Vmxnet3_RxCompDesc *rcd, struct rte_mbuf *rxm)
 			if ((rcd->tcp || rcd->udp) && !rcd->tuc)
 				rxm->ol_flags |= PKT_RX_L4_CKSUM_BAD;
 		}
+	} else {
+		rxm->packet_type = RTE_PTYPE_UNKNOWN;
 	}
 }
 
@@ -979,7 +957,7 @@ vmxnet3_dev_tx_queue_setup(struct rte_eth_dev *dev,
 
 	/* cmd_ring initialization */
 	ring->base = mz->addr;
-	ring->basePA = mz->phys_addr;
+	ring->basePA = mz->iova;
 
 	/* comp_ring initialization */
 	comp_ring->base = ring->base + ring->size;
@@ -1090,7 +1068,7 @@ vmxnet3_dev_rx_queue_setup(struct rte_eth_dev *dev,
 
 	/* cmd_ring0 initialization */
 	ring0->base = mz->addr;
-	ring0->basePA = mz->phys_addr;
+	ring0->basePA = mz->iova;
 
 	/* cmd_ring1 initialization */
 	ring1->base = ring0->base + ring0->size;

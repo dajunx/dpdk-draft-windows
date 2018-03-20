@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <string.h>
@@ -62,7 +33,7 @@
  * This file is only compiled if CONFIG_RTE_EAL_VFIO is set to "y".
  */
 
-#ifdef RTE_EAL_VFIO
+#ifdef VFIO_PRESENT
 
 #define PAGE_SIZE   (sysconf(_SC_PAGESIZE))
 #define PAGE_MASK   (~(PAGE_SIZE - 1))
@@ -325,7 +296,7 @@ pci_vfio_is_ioport_bar(int vfio_dev_fd, int bar_index)
 }
 
 static int
-pci_vfio_setup_device(struct rte_pci_device *dev, int vfio_dev_fd)
+pci_rte_vfio_setup_device(struct rte_pci_device *dev, int vfio_dev_fd)
 {
 	if (pci_vfio_setup_interrupts(dev, vfio_dev_fd) != 0) {
 		RTE_LOG(ERR, EAL, "Error setting up interrupts!\n");
@@ -338,8 +309,11 @@ pci_vfio_setup_device(struct rte_pci_device *dev, int vfio_dev_fd)
 		return -1;
 	}
 
-	/* Reset the device */
-	if (ioctl(vfio_dev_fd, VFIO_DEVICE_RESET)) {
+	/*
+	 * Reset the device. If the device is not capable of resetting,
+	 * then it updates errno as EINVAL.
+	 */
+	if (ioctl(vfio_dev_fd, VFIO_DEVICE_RESET) && errno != EINVAL) {
 		RTE_LOG(ERR, EAL, "Unable to reset device! Error: %d (%s)\n",
 				errno, strerror(errno));
 		return -1;
@@ -456,13 +430,12 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 	struct pci_map *maps;
 
 	dev->intr_handle.fd = -1;
-	dev->intr_handle.type = RTE_INTR_HANDLE_UNKNOWN;
 
 	/* store PCI address string */
 	snprintf(pci_addr, sizeof(pci_addr), PCI_PRI_FMT,
 			loc->domain, loc->bus, loc->devid, loc->function);
 
-	ret = vfio_setup_device(pci_get_sysfs_path(), pci_addr,
+	ret = rte_vfio_setup_device(rte_pci_get_sysfs_path(), pci_addr,
 					&vfio_dev_fd, &device_info);
 	if (ret)
 		return ret;
@@ -543,7 +516,7 @@ pci_vfio_map_resource_primary(struct rte_pci_device *dev)
 		dev->mem_resource[i].addr = maps[i].addr;
 	}
 
-	if (pci_vfio_setup_device(dev, vfio_dev_fd) < 0) {
+	if (pci_rte_vfio_setup_device(dev, vfio_dev_fd) < 0) {
 		RTE_LOG(ERR, EAL, "  %s setup device failed\n", pci_addr);
 		goto err_vfio_res;
 	}
@@ -573,20 +546,19 @@ pci_vfio_map_resource_secondary(struct rte_pci_device *dev)
 	struct pci_map *maps;
 
 	dev->intr_handle.fd = -1;
-	dev->intr_handle.type = RTE_INTR_HANDLE_UNKNOWN;
 
 	/* store PCI address string */
 	snprintf(pci_addr, sizeof(pci_addr), PCI_PRI_FMT,
 			loc->domain, loc->bus, loc->devid, loc->function);
 
-	ret = vfio_setup_device(pci_get_sysfs_path(), pci_addr,
+	ret = rte_vfio_setup_device(rte_pci_get_sysfs_path(), pci_addr,
 					&vfio_dev_fd, &device_info);
 	if (ret)
 		return ret;
 
 	/* if we're in a secondary process, just find our tailq entry */
 	TAILQ_FOREACH(vfio_res, vfio_res_list, next) {
-		if (pci_addr_cmp(&vfio_res->pci_addr,
+		if (rte_pci_addr_cmp(&vfio_res->pci_addr,
 						 &dev->addr))
 			continue;
 		break;
@@ -659,7 +631,7 @@ pci_vfio_unmap_resource(struct rte_pci_device *dev)
 		return -1;
 	}
 
-	ret = vfio_release_device(pci_get_sysfs_path(), pci_addr,
+	ret = rte_vfio_release_device(rte_pci_get_sysfs_path(), pci_addr,
 				  dev->intr_handle.vfio_dev_fd);
 	if (ret < 0) {
 		RTE_LOG(ERR, EAL,
@@ -755,6 +727,6 @@ pci_vfio_ioport_unmap(struct rte_pci_ioport *p)
 int
 pci_vfio_is_enabled(void)
 {
-	return vfio_is_enabled("vfio_pci");
+	return rte_vfio_is_enabled("vfio_pci");
 }
 #endif

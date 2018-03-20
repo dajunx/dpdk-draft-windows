@@ -1,35 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   Copyright(c) 2016 6WIND S.A.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation.
+ * Copyright(c) 2016 6WIND S.A.
  */
 
 #ifndef _RTE_MEMPOOL_H_
@@ -69,6 +40,7 @@
 #include <inttypes.h>
 #include <sys/queue.h>
 
+#include <rte_config.h>
 #include <rte_spinlock.h>
 #include <rte_log.h>
 #include <rte_debug.h>
@@ -168,7 +140,11 @@ struct rte_mempool_objsz {
 struct rte_mempool_objhdr {
 	STAILQ_ENTRY(rte_mempool_objhdr) next; /**< Next in list. */
 	struct rte_mempool *mp;          /**< The mempool owning the object. */
-	phys_addr_t physaddr;            /**< Physical address of the object. */
+	RTE_STD_C11
+	union {
+		rte_iova_t iova;         /**< IO address of the object. */
+		phys_addr_t physaddr;    /**< deprecated - Physical address of the object. */
+	};
 #ifdef RTE_LIBRTE_MEMPOOL_DEBUG
 	uint64_t cookie;                 /**< Debug cookie. */
 #endif
@@ -214,7 +190,11 @@ struct rte_mempool_memhdr {
 	STAILQ_ENTRY(rte_mempool_memhdr) next; /**< Next in list. */
 	struct rte_mempool *mp;  /**< The mempool owning the chunk */
 	void *addr;              /**< Virtual address of the chunk */
-	phys_addr_t phys_addr;   /**< Physical address of the chunk */
+	RTE_STD_C11
+	union {
+		rte_iova_t iova;       /**< IO address of the chunk */
+		phys_addr_t phys_addr; /**< Physical address of the chunk */
+	};
 	size_t len;              /**< length of the chunk */
 	rte_mempool_memchunk_free_cb_t *free_cb; /**< Free callback */
 	void *opaque;            /**< Argument passed to the free callback */
@@ -431,7 +411,7 @@ typedef int (*rte_mempool_get_capabilities_t)(const struct rte_mempool *mp,
  * Notify new memory area to mempool.
  */
 typedef int (*rte_mempool_ops_register_memory_area_t)
-(const struct rte_mempool *mp, char *vaddr, phys_addr_t paddr, size_t len);
+(const struct rte_mempool *mp, char *vaddr, rte_iova_t iova, size_t len);
 
 /** Structure defining mempool operations structure */
 #ifdef _WIN64
@@ -590,8 +570,8 @@ rte_mempool_ops_get_capabilities(const struct rte_mempool *mp,
  *   Pointer to the memory pool.
  * @param vaddr
  *   Pointer to the buffer virtual address.
- * @param paddr
- *   Pointer to the buffer physical address.
+ * @param iova
+ *   Pointer to the buffer IO address.
  * @param len
  *   Pool size.
  * @return
@@ -601,7 +581,7 @@ rte_mempool_ops_get_capabilities(const struct rte_mempool *mp,
  */
 int
 rte_mempool_ops_register_memory_area(const struct rte_mempool *mp,
-				char *vaddr, phys_addr_t paddr, size_t len);
+				char *vaddr, rte_iova_t iova, size_t len);
 
 /**
  * @internal wrapper for mempool_ops free callback.
@@ -817,11 +797,10 @@ rte_mempool_create(const char *name, unsigned n, unsigned elt_size,
  * @param vaddr
  *   Virtual address of the externally allocated memory buffer.
  *   Will be used to store mempool objects.
- * @param paddr
- *   Array of physical addresses of the pages that comprises given memory
- *   buffer.
+ * @param iova
+ *   Array of IO addresses of the pages that comprises given memory buffer.
  * @param pg_num
- *   Number of elements in the paddr array.
+ *   Number of elements in the iova array.
  * @param pg_shift
  *   LOG2 of the physical pages size.
  * @return
@@ -834,7 +813,7 @@ rte_mempool_xmem_create(const char *name, unsigned n, unsigned elt_size,
 		rte_mempool_ctor_t *mp_init, void *mp_init_arg,
 		rte_mempool_obj_cb_t *obj_init, void *obj_init_arg,
 		int socket_id, unsigned flags, void *vaddr,
-		const phys_addr_t paddr[], uint32_t pg_num, uint32_t pg_shift);
+		const rte_iova_t iova[], uint32_t pg_num, uint32_t pg_shift);
 
 /**
  * Create an empty mempool
@@ -893,7 +872,7 @@ rte_mempool_free(struct rte_mempool *mp);
  * Add a virtually and physically contiguous memory chunk in the pool
  * where objects can be instantiated.
  *
- * If the given physical address is unknown (paddr = RTE_BAD_PHYS_ADDR),
+ * If the given IO address is unknown (iova = RTE_BAD_IOVA),
  * the chunk doesn't need to be physically contiguous (only virtually),
  * and allocated objects may span two pages.
  *
@@ -901,8 +880,8 @@ rte_mempool_free(struct rte_mempool *mp);
  *   A pointer to the mempool structure.
  * @param vaddr
  *   The virtual address of memory that should be used to store objects.
- * @param paddr
- *   The physical address
+ * @param iova
+ *   The IO address
  * @param len
  *   The length of memory in bytes.
  * @param free_cb
@@ -914,6 +893,11 @@ rte_mempool_free(struct rte_mempool *mp);
  *   On error, the chunk is not added in the memory list of the
  *   mempool and a negative errno is returned.
  */
+int rte_mempool_populate_iova(struct rte_mempool *mp, char *vaddr,
+	rte_iova_t iova, size_t len, rte_mempool_memchunk_free_cb_t *free_cb,
+	void *opaque);
+
+__rte_deprecated
 int rte_mempool_populate_phys(struct rte_mempool *mp, char *vaddr,
 	phys_addr_t paddr, size_t len, rte_mempool_memchunk_free_cb_t *free_cb,
 	void *opaque);
@@ -922,18 +906,17 @@ int rte_mempool_populate_phys(struct rte_mempool *mp, char *vaddr,
  * Add physical memory for objects in the pool at init
  *
  * Add a virtually contiguous memory chunk in the pool where objects can
- * be instantiated. The physical addresses corresponding to the virtual
- * area are described in paddr[], pg_num, pg_shift.
+ * be instantiated. The IO addresses corresponding to the virtual
+ * area are described in iova[], pg_num, pg_shift.
  *
  * @param mp
  *   A pointer to the mempool structure.
  * @param vaddr
  *   The virtual address of memory that should be used to store objects.
- * @param paddr
- *   An array of physical addresses of each page composing the virtual
- *   area.
+ * @param iova
+ *   An array of IO addresses of each page composing the virtual area.
  * @param pg_num
- *   Number of elements in the paddr array.
+ *   Number of elements in the iova array.
  * @param pg_shift
  *   LOG2 of the physical pages size.
  * @param free_cb
@@ -945,6 +928,11 @@ int rte_mempool_populate_phys(struct rte_mempool *mp, char *vaddr,
  *   On error, the chunks are not added in the memory list of the
  *   mempool and a negative errno is returned.
  */
+int rte_mempool_populate_iova_tab(struct rte_mempool *mp, char *vaddr,
+	const rte_iova_t iova[], uint32_t pg_num, uint32_t pg_shift,
+	rte_mempool_memchunk_free_cb_t *free_cb, void *opaque);
+
+__rte_deprecated
 int rte_mempool_populate_phys_tab(struct rte_mempool *mp, char *vaddr,
 	const phys_addr_t paddr[], uint32_t pg_num, uint32_t pg_shift,
 	rte_mempool_memchunk_free_cb_t *free_cb, void *opaque);
@@ -1465,24 +1453,29 @@ rte_mempool_empty(const struct rte_mempool *mp)
 }
 
 /**
- * Return the physical address of elt, which is an element of the pool mp.
+ * Return the IO address of elt, which is an element of the pool mp.
  *
- * @param mp
- *   A pointer to the mempool structure.
  * @param elt
  *   A pointer (virtual address) to the element of the pool.
  * @return
- *   The physical address of the elt element.
+ *   The IO address of the elt element.
  *   If the mempool was created with MEMPOOL_F_NO_PHYS_CONTIG, the
- *   returned value is RTE_BAD_PHYS_ADDR.
+ *   returned value is RTE_BAD_IOVA.
  */
-static inline phys_addr_t
-rte_mempool_virt2phy(__rte_unused const struct rte_mempool *mp, const void *elt)
+static inline rte_iova_t
+rte_mempool_virt2iova(const void *elt)
 {
 	const struct rte_mempool_objhdr *hdr;
 	hdr = (const struct rte_mempool_objhdr *)RTE_PTR_SUB(elt,
 		sizeof(*hdr));
-	return hdr->physaddr;
+	return hdr->iova;
+}
+
+__rte_deprecated
+static inline phys_addr_t
+rte_mempool_virt2phy(__rte_unused const struct rte_mempool *mp, const void *elt)
+{
+	return rte_mempool_virt2iova(elt);
 }
 
 /**
@@ -1593,11 +1586,10 @@ size_t rte_mempool_xmem_size(uint32_t elt_num, size_t total_elt_sz,
  * @param total_elt_sz
  *   The size of each element, including header and trailer, as returned
  *   by rte_mempool_calc_obj_size().
- * @param paddr
- *   Array of physical addresses of the pages that comprises given memory
- *   buffer.
+ * @param iova
+ *   Array of IO addresses of the pages that comprises given memory buffer.
  * @param pg_num
- *   Number of elements in the paddr array.
+ *   Number of elements in the iova array.
  * @param pg_shift
  *   LOG2 of the physical pages size.
  * @param flags
@@ -1609,7 +1601,7 @@ size_t rte_mempool_xmem_size(uint32_t elt_num, size_t total_elt_sz,
  *   is the actual number of elements that can be stored in that buffer.
  */
 ssize_t rte_mempool_xmem_usage(void *vaddr, uint32_t elt_num,
-	size_t total_elt_sz, const phys_addr_t paddr[], uint32_t pg_num,
+	size_t total_elt_sz, const rte_iova_t iova[], uint32_t pg_num,
 	uint32_t pg_shift, unsigned int flags);
 
 /**

@@ -1,34 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright 2017 6WIND S.A.
- *   Copyright 2017 Mellanox
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of 6WIND S.A. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright 2017 6WIND S.A.
+ * Copyright 2017 Mellanox
  */
 
 /**
@@ -36,7 +8,9 @@
  * Memory management functions for mlx4 driver.
  */
 
+#include <assert.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -50,11 +24,16 @@
 #pragma GCC diagnostic error "-Wpedantic"
 #endif
 
+#include <rte_branch_prediction.h>
 #include <rte_common.h>
 #include <rte_errno.h>
+#include <rte_malloc.h>
 #include <rte_memory.h>
 #include <rte_mempool.h>
+#include <rte_spinlock.h>
 
+#include "mlx4_glue.h"
+#include "mlx4_rxtx.h"
 #include "mlx4_utils.h"
 
 struct mlx4_check_mempool_data {
@@ -131,24 +110,27 @@ mlx4_check_mempool(struct rte_mempool *mp, uintptr_t *start, uintptr_t *end)
 }
 
 /**
- * Register mempool as a memory region.
+ * Obtain a memory region from a memory pool.
  *
- * @param pd
- *   Pointer to protection domain.
+ * If a matching memory region already exists, it is returned with its
+ * reference count incremented, otherwise a new one is registered.
+ *
+ * @param priv
+ *   Pointer to private structure.
  * @param mp
  *   Pointer to memory pool.
  *
  * @return
  *   Memory region pointer, NULL in case of error and rte_errno is set.
  */
-struct ibv_mr *
-mlx4_mp2mr(struct ibv_pd *pd, struct rte_mempool *mp)
+struct mlx4_mr *
+mlx4_mr_get(struct priv *priv, struct rte_mempool *mp)
 {
 	const struct rte_memseg *ms = rte_eal_get_physmem_layout();
 	uintptr_t start;
 	uintptr_t end;
 	unsigned int i;
-	struct ibv_mr *mr;
+	struct mlx4_mr *mr;
 
 	if (mlx4_check_mempool(mp, &start, &end) != 0) {
 		rte_errno = EINVAL;
@@ -173,11 +155,112 @@ mlx4_mp2mr(struct ibv_pd *pd, struct rte_mempool *mp)
 	DEBUG("mempool %p using start=%p end=%p size=%zu for MR",
 	      (void *)mp, (void *)start, (void *)end,
 	      (size_t)(end - start));
-	mr = ibv_reg_mr(pd,
-			(void *)start,
-			end - start,
-			IBV_ACCESS_LOCAL_WRITE);
-	if (!mr)
+	rte_spinlock_lock(&priv->mr_lock);
+	LIST_FOREACH(mr, &priv->mr, next)
+		if (mp == mr->mp && start >= mr->start && end <= mr->end)
+			break;
+	if (mr) {
+		++mr->refcnt;
+		goto release;
+	}
+	mr = rte_malloc(__func__, sizeof(*mr), 0);
+	if (!mr) {
+		rte_errno = ENOMEM;
+		goto release;
+	}
+	*mr = (struct mlx4_mr){
+		.start = start,
+		.end = end,
+		.refcnt = 1,
+		.priv = priv,
+		.mr = mlx4_glue->reg_mr(priv->pd, (void *)start, end - start,
+					IBV_ACCESS_LOCAL_WRITE),
+		.mp = mp,
+	};
+	if (mr->mr) {
+		mr->lkey = mr->mr->lkey;
+		LIST_INSERT_HEAD(&priv->mr, mr, next);
+	} else {
+		rte_free(mr);
+		mr = NULL;
 		rte_errno = errno ? errno : EINVAL;
+	}
+release:
+	rte_spinlock_unlock(&priv->mr_lock);
 	return mr;
+}
+
+/**
+ * Release a memory region.
+ *
+ * This function decrements its reference count and destroys it after
+ * reaching 0.
+ *
+ * Note to avoid race conditions given this function may be used from the
+ * data plane, it's extremely important that each user holds its own
+ * reference.
+ *
+ * @param mr
+ *   Memory region to release.
+ */
+void
+mlx4_mr_put(struct mlx4_mr *mr)
+{
+	struct priv *priv = mr->priv;
+
+	rte_spinlock_lock(&priv->mr_lock);
+	assert(mr->refcnt);
+	if (--mr->refcnt)
+		goto release;
+	LIST_REMOVE(mr, next);
+	claim_zero(mlx4_glue->dereg_mr(mr->mr));
+	rte_free(mr);
+release:
+	rte_spinlock_unlock(&priv->mr_lock);
+}
+
+/**
+ * Add memory region (MR) <-> memory pool (MP) association to txq->mp2mr[].
+ * If mp2mr[] is full, remove an entry first.
+ *
+ * @param txq
+ *   Pointer to Tx queue structure.
+ * @param[in] mp
+ *   Memory pool for which a memory region lkey must be added.
+ * @param[in] i
+ *   Index in memory pool (MP) where to add memory region (MR).
+ *
+ * @return
+ *   Added mr->lkey on success, (uint32_t)-1 on failure.
+ */
+uint32_t
+mlx4_txq_add_mr(struct txq *txq, struct rte_mempool *mp, uint32_t i)
+{
+	struct mlx4_mr *mr;
+
+	/* Add a new entry, register MR first. */
+	DEBUG("%p: discovered new memory pool \"%s\" (%p)",
+	      (void *)txq, mp->name, (void *)mp);
+	mr = mlx4_mr_get(txq->priv, mp);
+	if (unlikely(mr == NULL)) {
+		DEBUG("%p: unable to configure MR, mlx4_mr_get() failed",
+		      (void *)txq);
+		return (uint32_t)-1;
+	}
+	if (unlikely(i == RTE_DIM(txq->mp2mr))) {
+		/* Table is full, remove oldest entry. */
+		DEBUG("%p: MR <-> MP table full, dropping oldest entry.",
+		      (void *)txq);
+		--i;
+		mlx4_mr_put(txq->mp2mr[0].mr);
+		memmove(&txq->mp2mr[0], &txq->mp2mr[1],
+			(sizeof(txq->mp2mr) - sizeof(txq->mp2mr[0])));
+	}
+	/* Store the new entry. */
+	txq->mp2mr[i].mp = mp;
+	txq->mp2mr[i].mr = mr;
+	txq->mp2mr[i].lkey = mr->lkey;
+	DEBUG("%p: new MR lkey for MP \"%s\" (%p): 0x%08" PRIu32,
+	      (void *)txq, mp->name, (void *)mp, txq->mp2mr[i].lkey);
+	return txq->mp2mr[i].lkey;
 }

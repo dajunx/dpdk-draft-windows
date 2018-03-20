@@ -1,34 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright 2017 6WIND S.A.
- *   Copyright 2017 Mellanox
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of 6WIND S.A. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright 2017 6WIND S.A.
+ * Copyright 2017 Mellanox
  */
 
 /**
@@ -37,7 +9,6 @@
  */
 
 #include <assert.h>
-#include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -67,63 +38,241 @@
  * DWORD (32 byte) of a TXBB.
  */
 struct pv {
-	struct mlx4_wqe_data_seg *dseg;
+	volatile struct mlx4_wqe_data_seg *dseg;
 	uint32_t val;
 };
 
+/** A table to translate Rx completion flags to packet type. */
+uint32_t mlx4_ptype_table[0x100] __rte_cache_aligned = {
+	/*
+	 * The index to the array should have:
+	 *  bit[7] - MLX4_CQE_L2_TUNNEL
+	 *  bit[6] - MLX4_CQE_L2_TUNNEL_IPV4
+	 *  bit[5] - MLX4_CQE_STATUS_UDP
+	 *  bit[4] - MLX4_CQE_STATUS_TCP
+	 *  bit[3] - MLX4_CQE_STATUS_IPV4OPT
+	 *  bit[2] - MLX4_CQE_STATUS_IPV6
+	 *  bit[1] - MLX4_CQE_STATUS_IPV4F
+	 *  bit[0] - MLX4_CQE_STATUS_IPV4
+	 * giving a total of up to 256 entries.
+	 */
+	[0x00] = RTE_PTYPE_L2_ETHER,
+	[0x01] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_NONFRAG,
+	[0x02] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_FRAG,
+	[0x03] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_FRAG,
+	[0x04] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN,
+	[0x09] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT,
+	[0x0a] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_FRAG,
+	[0x11] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_TCP,
+	[0x12] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_TCP,
+	[0x14] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_TCP,
+	[0x18] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_TCP,
+	[0x19] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_TCP,
+	[0x1a] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_TCP,
+	[0x21] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_UDP,
+	[0x22] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_UDP,
+	[0x24] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_L4_UDP,
+	[0x28] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_UDP,
+	[0x29] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_UDP,
+	[0x2a] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT |
+		     RTE_PTYPE_L4_UDP,
+	/* Tunneled - L3 IPV6 */
+	[0x80] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN,
+	[0x81] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN,
+	[0x82] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG,
+	[0x83] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG,
+	[0x84] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN,
+	[0x88] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT,
+	[0x89] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT,
+	[0x8a] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_FRAG,
+	/* Tunneled - L3 IPV6, TCP */
+	[0x91] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x92] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x93] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x94] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x98] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x99] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0x9a] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	/* Tunneled - L3 IPV6, UDP */
+	[0xa1] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xa2] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xa3] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xa4] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xa8] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xa9] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xaa] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+	/* Tunneled - L3 IPV4 */
+	[0xc0] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN,
+	[0xc1] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN,
+	[0xc2] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG,
+	[0xc3] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG,
+	[0xc4] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN,
+	[0xc8] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT,
+	[0xc9] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT,
+	[0xca] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_FRAG,
+	/* Tunneled - L3 IPV4, TCP */
+	[0xd0] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd1] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd2] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd3] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd4] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd8] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xd9] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT |
+		     RTE_PTYPE_INNER_L4_TCP,
+	[0xda] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_TCP,
+	/* Tunneled - L3 IPV4, UDP */
+	[0xe0] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xe1] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xe2] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xe3] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xe4] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV6_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L4_UDP,
+	[0xe8] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_UDP,
+	[0xe9] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_UDP,
+	[0xea] = RTE_PTYPE_L2_ETHER | RTE_PTYPE_L3_IPV4_EXT_UNKNOWN |
+		     RTE_PTYPE_INNER_L3_IPV4_EXT | RTE_PTYPE_INNER_L4_FRAG |
+		     RTE_PTYPE_INNER_L4_UDP,
+};
+
 /**
- * Stamp a WQE so it won't be reused by the HW.
+ * Stamp TXBB burst so it won't be reused by the HW.
  *
  * Routine is used when freeing WQE used by the chip or when failing
  * building an WQ entry has failed leaving partial information on the queue.
  *
  * @param sq
  *   Pointer to the SQ structure.
- * @param index
- *   Index of the freed WQE.
- * @param num_txbbs
- *   Number of blocks to stamp.
- *   If < 0 the routine will use the size written in the WQ entry.
- * @param owner
- *   The value of the WQE owner bit to use in the stamp.
+ * @param start
+ *   Pointer to the first TXBB to stamp.
+ * @param end
+ *   Pointer to the followed end TXBB to stamp.
  *
  * @return
- *   The number of Tx basic blocs (TXBB) the WQE contained.
+ *   Stamping burst size in byte units.
  */
-static int
-mlx4_txq_stamp_freed_wqe(struct mlx4_sq *sq, uint16_t index, uint8_t owner)
+static uint32_t
+mlx4_txq_stamp_freed_wqe(struct mlx4_sq *sq, volatile uint32_t *start,
+			 volatile uint32_t *end)
 {
-	uint32_t stamp = rte_cpu_to_be_32(MLX4_SQ_STAMP_VAL |
-					  (!!owner << MLX4_SQ_STAMP_SHIFT));
-	uint8_t *wqe = mlx4_get_send_wqe(sq, (index & sq->txbb_cnt_mask));
-	uint32_t *ptr = (uint32_t *)wqe;
-	int i;
-	int txbbs_size;
-	int num_txbbs;
+	uint32_t stamp = sq->stamp;
+	int32_t size = (intptr_t)end - (intptr_t)start;
 
-	/* Extract the size from the control segment of the WQE. */
-	num_txbbs = MLX4_SIZE_TO_TXBBS((((struct mlx4_wqe_ctrl_seg *)
-					 wqe)->fence_size & 0x3f) << 4);
-	txbbs_size = num_txbbs * MLX4_TXBB_SIZE;
-	/* Optimize the common case when there is no wrap-around. */
-	if (wqe + txbbs_size <= sq->eob) {
-		/* Stamp the freed descriptor. */
-		for (i = 0; i < txbbs_size; i += MLX4_SQ_STAMP_STRIDE) {
-			*ptr = stamp;
-			ptr += MLX4_SQ_STAMP_DWORDS;
-		}
-	} else {
-		/* Stamp the freed descriptor. */
-		for (i = 0; i < txbbs_size; i += MLX4_SQ_STAMP_STRIDE) {
-			*ptr = stamp;
-			ptr += MLX4_SQ_STAMP_DWORDS;
-			if ((uint8_t *)ptr >= sq->eob) {
-				ptr = (uint32_t *)sq->buf;
-				stamp ^= RTE_BE32(0x80000000);
-			}
-		}
+	assert(start != end);
+	/* Hold SQ ring wrap around. */
+	if (size < 0) {
+		size = (int32_t)sq->size + size;
+		do {
+			*start = stamp;
+			start += MLX4_SQ_STAMP_DWORDS;
+		} while (start != (volatile uint32_t *)sq->eob);
+		start = (volatile uint32_t *)sq->buf;
+		/* Flip invalid stamping ownership. */
+		stamp ^= RTE_BE32(0x1 << MLX4_SQ_OWNER_BIT);
+		sq->stamp = stamp;
+		if (start == end)
+			return size;
 	}
-	return num_txbbs;
+	do {
+		*start = stamp;
+		start += MLX4_SQ_STAMP_DWORDS;
+	} while (start != end);
+	return (uint32_t)size;
 }
 
 /**
@@ -136,86 +285,62 @@ mlx4_txq_stamp_freed_wqe(struct mlx4_sq *sq, uint16_t index, uint8_t owner)
  *
  * @param txq
  *   Pointer to Tx queue structure.
- *
- * @return
- *   0 on success, -1 on failure.
+ * @param elts_m
+ *   Tx elements number mask.
+ * @param sq
+ *   Pointer to the SQ structure.
  */
-static int
-mlx4_txq_complete(struct txq *txq)
+static void
+mlx4_txq_complete(struct txq *txq, const unsigned int elts_m,
+		  struct mlx4_sq *sq)
 {
-	unsigned int elts_comp = txq->elts_comp;
 	unsigned int elts_tail = txq->elts_tail;
-	const unsigned int elts_n = txq->elts_n;
 	struct mlx4_cq *cq = &txq->mcq;
-	struct mlx4_sq *sq = &txq->msq;
-	struct mlx4_cqe *cqe;
+	volatile struct mlx4_cqe *cqe;
+	uint32_t completed;
 	uint32_t cons_index = cq->cons_index;
-	uint16_t new_index;
-	uint16_t nr_txbbs = 0;
-	int pkts = 0;
+	volatile uint32_t *first_txbb;
 
-	if (unlikely(elts_comp == 0))
-		return 0;
 	/*
 	 * Traverse over all CQ entries reported and handle each WQ entry
 	 * reported by them.
 	 */
 	do {
-		cqe = (struct mlx4_cqe *)mlx4_get_cqe(cq, cons_index);
+		cqe = (volatile struct mlx4_cqe *)mlx4_get_cqe(cq, cons_index);
 		if (unlikely(!!(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK) ^
 		    !!(cons_index & cq->cqe_cnt)))
 			break;
+#ifndef NDEBUG
 		/*
 		 * Make sure we read the CQE after we read the ownership bit.
 		 */
-		rte_rmb();
+		rte_io_rmb();
 		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 			     MLX4_CQE_OPCODE_ERROR)) {
-			struct mlx4_err_cqe *cqe_err =
-				(struct mlx4_err_cqe *)cqe;
+			volatile struct mlx4_err_cqe *cqe_err =
+				(volatile struct mlx4_err_cqe *)cqe;
 			ERROR("%p CQE error - vendor syndrome: 0x%x"
 			      " syndrome: 0x%x\n",
 			      (void *)txq, cqe_err->vendor_err,
 			      cqe_err->syndrome);
+			break;
 		}
-		/* Get WQE index reported in the CQE. */
-		new_index =
-			rte_be_to_cpu_16(cqe->wqe_index) & sq->txbb_cnt_mask;
-		do {
-			/* Free next descriptor. */
-			nr_txbbs +=
-				mlx4_txq_stamp_freed_wqe(sq,
-				     (sq->tail + nr_txbbs) & sq->txbb_cnt_mask,
-				     !!((sq->tail + nr_txbbs) & sq->txbb_cnt));
-			pkts++;
-		} while (((sq->tail + nr_txbbs) & sq->txbb_cnt_mask) !=
-			 new_index);
+#endif /* NDEBUG */
 		cons_index++;
 	} while (1);
-	if (unlikely(pkts == 0))
-		return 0;
-	/*
-	 * Update CQ.
-	 * To prevent CQ overflow we first update CQ consumer and only then
-	 * the ring consumer.
-	 */
+	completed = (cons_index - cq->cons_index) * txq->elts_comp_cd_init;
+	if (unlikely(!completed))
+		return;
+	/* First stamping address is the end of the last one. */
+	first_txbb = (&(*txq->elts)[elts_tail & elts_m])->eocb;
+	elts_tail += completed;
+	/* The new tail element holds the end address. */
+	sq->remain_size += mlx4_txq_stamp_freed_wqe(sq, first_txbb,
+		(&(*txq->elts)[elts_tail & elts_m])->eocb);
+	/* Update CQ consumer index. */
 	cq->cons_index = cons_index;
-	*cq->set_ci_db = rte_cpu_to_be_32(cq->cons_index & MLX4_CQ_DB_CI_MASK);
-	rte_wmb();
-	sq->tail = sq->tail + nr_txbbs;
-	/* Update the list of packets posted for transmission. */
-	elts_comp -= pkts;
-	assert(elts_comp <= txq->elts_comp);
-	/*
-	 * Assume completion status is successful as nothing can be done about
-	 * it anyway.
-	 */
-	elts_tail += pkts;
-	if (elts_tail >= elts_n)
-		elts_tail -= elts_n;
+	*cq->set_ci_db = rte_cpu_to_be_32(cons_index & MLX4_CQ_DB_CI_MASK);
 	txq->elts_tail = elts_tail;
-	txq->elts_comp = elts_comp;
-	return 0;
 }
 
 /**
@@ -237,175 +362,165 @@ mlx4_txq_mb2mp(struct rte_mbuf *buf)
 }
 
 /**
- * Get memory region (MR) <-> memory pool (MP) association from txq->mp2mr[].
- * Add MP to txq->mp2mr[] if it's not registered yet. If mp2mr[] is full,
- * remove an entry first.
+ * Write Tx data segment to the SQ.
  *
- * @param txq
- *   Pointer to Tx queue structure.
- * @param[in] mp
- *   Memory pool for which a memory region lkey must be returned.
- *
- * @return
- *   mr->lkey on success, (uint32_t)-1 on failure.
+ * @param dseg
+ *   Pointer to data segment in SQ.
+ * @param lkey
+ *   Memory region lkey.
+ * @param addr
+ *   Data address.
+ * @param byte_count
+ *   Big endian bytes count of the data to send.
  */
-uint32_t
-mlx4_txq_mp2mr(struct txq *txq, struct rte_mempool *mp)
+static inline void
+mlx4_fill_tx_data_seg(volatile struct mlx4_wqe_data_seg *dseg,
+		       uint32_t lkey, uintptr_t addr, rte_be32_t  byte_count)
 {
-	unsigned int i;
-	struct ibv_mr *mr;
-
-	for (i = 0; (i != RTE_DIM(txq->mp2mr)); ++i) {
-		if (unlikely(txq->mp2mr[i].mp == NULL)) {
-			/* Unknown MP, add a new MR for it. */
-			break;
-		}
-		if (txq->mp2mr[i].mp == mp) {
-			assert(txq->mp2mr[i].lkey != (uint32_t)-1);
-			assert(txq->mp2mr[i].mr->lkey == txq->mp2mr[i].lkey);
-			return txq->mp2mr[i].lkey;
-		}
-	}
-	/* Add a new entry, register MR first. */
-	DEBUG("%p: discovered new memory pool \"%s\" (%p)",
-	      (void *)txq, mp->name, (void *)mp);
-	mr = mlx4_mp2mr(txq->priv->pd, mp);
-	if (unlikely(mr == NULL)) {
-		DEBUG("%p: unable to configure MR, ibv_reg_mr() failed.",
-		      (void *)txq);
-		return (uint32_t)-1;
-	}
-	if (unlikely(i == RTE_DIM(txq->mp2mr))) {
-		/* Table is full, remove oldest entry. */
-		DEBUG("%p: MR <-> MP table full, dropping oldest entry.",
-		      (void *)txq);
-		--i;
-		claim_zero(ibv_dereg_mr(txq->mp2mr[0].mr));
-		memmove(&txq->mp2mr[0], &txq->mp2mr[1],
-			(sizeof(txq->mp2mr) - sizeof(txq->mp2mr[0])));
-	}
-	/* Store the new entry. */
-	txq->mp2mr[i].mp = mp;
-	txq->mp2mr[i].mr = mr;
-	txq->mp2mr[i].lkey = mr->lkey;
-	DEBUG("%p: new MR lkey for MP \"%s\" (%p): 0x%08" PRIu32,
-	      (void *)txq, mp->name, (void *)mp, txq->mp2mr[i].lkey);
-	return txq->mp2mr[i].lkey;
+	dseg->addr = rte_cpu_to_be_64(addr);
+	dseg->lkey = rte_cpu_to_be_32(lkey);
+#if RTE_CACHE_LINE_SIZE < 64
+	/*
+	 * Need a barrier here before writing the byte_count
+	 * fields to make sure that all the data is visible
+	 * before the byte_count field is set.
+	 * Otherwise, if the segment begins a new cacheline,
+	 * the HCA prefetcher could grab the 64-byte chunk and
+	 * get a valid (!= 0xffffffff) byte count but stale
+	 * data, and end up sending the wrong data.
+	 */
+	rte_io_wmb();
+#endif /* RTE_CACHE_LINE_SIZE */
+	dseg->byte_count = byte_count;
 }
 
 /**
- * Posts a single work request to a send queue.
+ * Write data segments of multi-segment packet.
  *
+ * @param buf
+ *   Pointer to the first packet mbuf.
  * @param txq
- *   Target Tx queue.
- * @param pkt
- *   Packet to transmit.
+ *   Pointer to Tx queue structure.
+ * @param ctrl
+ *   Pointer to the WQE control segment.
  *
  * @return
- *   0 on success, negative errno value otherwise and rte_errno is set.
+ *   Pointer to the next WQE control segment on success, NULL otherwise.
  */
-static inline int
-mlx4_post_send(struct txq *txq, struct rte_mbuf *pkt)
+static volatile struct mlx4_wqe_ctrl_seg *
+mlx4_tx_burst_segs(struct rte_mbuf *buf, struct txq *txq,
+		   volatile struct mlx4_wqe_ctrl_seg *ctrl)
 {
-	struct mlx4_wqe_ctrl_seg *ctrl;
-	struct mlx4_wqe_data_seg *dseg;
-	struct mlx4_sq *sq = &txq->msq;
-	struct rte_mbuf *buf;
-	union {
-		uint32_t flags;
-		uint16_t flags16[2];
-	} srcrb;
-	uint32_t head_idx = sq->head & sq->txbb_cnt_mask;
-	uint32_t lkey;
-	uintptr_t addr;
-	uint32_t owner_opcode = MLX4_OPCODE_SEND;
-	uint32_t byte_count;
-	int wqe_real_size;
-	int nr_txbbs;
-	int rc;
 	struct pv *pv = (struct pv *)txq->bounce_buf;
+	struct mlx4_sq *sq = &txq->msq;
+	struct rte_mbuf *sbuf = buf;
+	uint32_t lkey;
 	int pv_counter = 0;
+	int nb_segs = buf->nb_segs;
+	uint32_t wqe_size;
+	volatile struct mlx4_wqe_data_seg *dseg =
+		(volatile struct mlx4_wqe_data_seg *)(ctrl + 1);
 
-	/* Calculate the needed work queue entry size for this packet. */
-	wqe_real_size = sizeof(struct mlx4_wqe_ctrl_seg) +
-			pkt->nb_segs * sizeof(struct mlx4_wqe_data_seg);
-	nr_txbbs = MLX4_SIZE_TO_TXBBS(wqe_real_size);
+	ctrl->fence_size = 1 + nb_segs;
+	wqe_size = RTE_ALIGN((uint32_t)(ctrl->fence_size << MLX4_SEG_SHIFT),
+			     MLX4_TXBB_SIZE);
+	/* Validate WQE size and WQE space in the send queue. */
+	if (sq->remain_size < wqe_size ||
+	    wqe_size > MLX4_MAX_WQE_SIZE)
+		return NULL;
 	/*
-	 * Check that there is room for this WQE in the send queue and that
-	 * the WQE size is legal.
+	 * Fill the data segments with buffer information.
+	 * First WQE TXBB head segment is always control segment,
+	 * so jump to tail TXBB data segments code for the first
+	 * WQE data segments filling.
 	 */
-	if (((sq->head - sq->tail) + nr_txbbs +
-	     sq->headroom_txbbs) >= sq->txbb_cnt ||
-	    nr_txbbs > MLX4_MAX_WQE_TXBBS) {
-		rc = ENOSPC;
-		goto err;
+	goto txbb_tail_segs;
+txbb_head_seg:
+	/* Memory region key (big endian) for this memory pool. */
+	lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(sbuf));
+	if (unlikely(lkey == (uint32_t)-1)) {
+		DEBUG("%p: unable to get MP <-> MR association",
+		      (void *)txq);
+		return NULL;
 	}
-	/* Get the control and data entries of the WQE. */
-	ctrl = (struct mlx4_wqe_ctrl_seg *)mlx4_get_send_wqe(sq, head_idx);
-	dseg = (struct mlx4_wqe_data_seg *)((uintptr_t)ctrl +
-					    sizeof(struct mlx4_wqe_ctrl_seg));
-	/* Fill the data segments with buffer information. */
-	for (buf = pkt; buf != NULL; buf = buf->next, dseg++) {
-		addr = rte_pktmbuf_mtod(buf, uintptr_t);
-		rte_prefetch0((volatile void *)addr);
-		/* Handle WQE wraparound. */
-		if (unlikely(dseg >= (struct mlx4_wqe_data_seg *)sq->eob))
-			dseg = (struct mlx4_wqe_data_seg *)sq->buf;
-		dseg->addr = rte_cpu_to_be_64(addr);
-		/* Memory region key for this memory pool. */
-		lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(buf));
+	/* Handle WQE wraparound. */
+	if (dseg >=
+		(volatile struct mlx4_wqe_data_seg *)sq->eob)
+		dseg = (volatile struct mlx4_wqe_data_seg *)
+			sq->buf;
+	dseg->addr = rte_cpu_to_be_64(rte_pktmbuf_mtod(sbuf, uintptr_t));
+	dseg->lkey = rte_cpu_to_be_32(lkey);
+	/*
+	 * This data segment starts at the beginning of a new
+	 * TXBB, so we need to postpone its byte_count writing
+	 * for later.
+	 */
+	pv[pv_counter].dseg = dseg;
+	/*
+	 * Zero length segment is treated as inline segment
+	 * with zero data.
+	 */
+	pv[pv_counter++].val = rte_cpu_to_be_32(sbuf->data_len ?
+						sbuf->data_len : 0x80000000);
+	sbuf = sbuf->next;
+	dseg++;
+	nb_segs--;
+txbb_tail_segs:
+	/* Jump to default if there are more than two segments remaining. */
+	switch (nb_segs) {
+	default:
+		lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(sbuf));
 		if (unlikely(lkey == (uint32_t)-1)) {
-			/* MR does not exist. */
 			DEBUG("%p: unable to get MP <-> MR association",
 			      (void *)txq);
-			/*
-			 * Restamp entry in case of failure.
-			 * Make sure that size is written correctly
-			 * Note that we give ownership to the SW, not the HW.
-			 */
-			ctrl->fence_size = (wqe_real_size >> 4) & 0x3f;
-			mlx4_txq_stamp_freed_wqe(sq, head_idx,
-				     (sq->head & sq->txbb_cnt) ? 0 : 1);
-			rc = EFAULT;
-			goto err;
+			return NULL;
 		}
-		dseg->lkey = rte_cpu_to_be_32(lkey);
-		if (likely(buf->data_len)) {
-			byte_count = rte_cpu_to_be_32(buf->data_len);
-		} else {
-			/*
-			 * Zero length segment is treated as inline segment
-			 * with zero data.
-			 */
-			byte_count = RTE_BE32(0x80000000);
+		mlx4_fill_tx_data_seg(dseg, lkey,
+				      rte_pktmbuf_mtod(sbuf, uintptr_t),
+				      rte_cpu_to_be_32(sbuf->data_len ?
+						       sbuf->data_len :
+						       0x80000000));
+		sbuf = sbuf->next;
+		dseg++;
+		nb_segs--;
+		/* fallthrough */
+	case 2:
+		lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(sbuf));
+		if (unlikely(lkey == (uint32_t)-1)) {
+			DEBUG("%p: unable to get MP <-> MR association",
+			      (void *)txq);
+			return NULL;
 		}
-		/*
-		 * If the data segment is not at the beginning of a
-		 * Tx basic block (TXBB) then write the byte count,
-		 * else postpone the writing to just before updating the
-		 * control segment.
-		 */
-		if ((uintptr_t)dseg & (uintptr_t)(MLX4_TXBB_SIZE - 1)) {
-			/*
-			 * Need a barrier here before writing the byte_count
-			 * fields to make sure that all the data is visible
-			 * before the byte_count field is set.
-			 * Otherwise, if the segment begins a new cacheline,
-			 * the HCA prefetcher could grab the 64-byte chunk and
-			 * get a valid (!= 0xffffffff) byte count but stale
-			 * data, and end up sending the wrong data.
-			 */
-			rte_io_wmb();
-			dseg->byte_count = byte_count;
-		} else {
-			/*
-			 * This data segment starts at the beginning of a new
-			 * TXBB, so we need to postpone its byte_count writing
-			 * for later.
-			 */
-			pv[pv_counter].dseg = dseg;
-			pv[pv_counter++].val = byte_count;
+		mlx4_fill_tx_data_seg(dseg, lkey,
+				      rte_pktmbuf_mtod(sbuf, uintptr_t),
+				      rte_cpu_to_be_32(sbuf->data_len ?
+						       sbuf->data_len :
+						       0x80000000));
+		sbuf = sbuf->next;
+		dseg++;
+		nb_segs--;
+		/* fallthrough */
+	case 1:
+		lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(sbuf));
+		if (unlikely(lkey == (uint32_t)-1)) {
+			DEBUG("%p: unable to get MP <-> MR association",
+			      (void *)txq);
+			return NULL;
 		}
+		mlx4_fill_tx_data_seg(dseg, lkey,
+				      rte_pktmbuf_mtod(sbuf, uintptr_t),
+				      rte_cpu_to_be_32(sbuf->data_len ?
+						       sbuf->data_len :
+						       0x80000000));
+		nb_segs--;
+		if (nb_segs) {
+			sbuf = sbuf->next;
+			dseg++;
+			goto txbb_head_seg;
+		}
+		/* fallthrough */
+	case 0:
+		break;
 	}
 	/* Write the first DWORD of each TXBB save earlier. */
 	if (pv_counter) {
@@ -414,66 +529,10 @@ mlx4_post_send(struct txq *txq, struct rte_mbuf *pkt)
 		for (--pv_counter; pv_counter  >= 0; pv_counter--)
 			pv[pv_counter].dseg->byte_count = pv[pv_counter].val;
 	}
-	/* Fill the control parameters for this packet. */
-	ctrl->fence_size = (wqe_real_size >> 4) & 0x3f;
-	/*
-	 * For raw Ethernet, the SOLICIT flag is used to indicate that no ICRC
-	 * should be calculated.
-	 */
-	txq->elts_comp_cd -= nr_txbbs;
-	if (unlikely(txq->elts_comp_cd <= 0)) {
-		txq->elts_comp_cd = txq->elts_comp_cd_init;
-		srcrb.flags = RTE_BE32(MLX4_WQE_CTRL_SOLICIT |
-				       MLX4_WQE_CTRL_CQ_UPDATE);
-	} else {
-		srcrb.flags = RTE_BE32(MLX4_WQE_CTRL_SOLICIT);
-	}
-	/* Enable HW checksum offload if requested */
-	if (txq->csum &&
-	    (pkt->ol_flags &
-	     (PKT_TX_IP_CKSUM | PKT_TX_TCP_CKSUM | PKT_TX_UDP_CKSUM))) {
-		const uint64_t is_tunneled = (pkt->ol_flags &
-					      (PKT_TX_TUNNEL_GRE |
-					       PKT_TX_TUNNEL_VXLAN));
-
-		if (is_tunneled && txq->csum_l2tun) {
-			owner_opcode |= MLX4_WQE_CTRL_IIP_HDR_CSUM |
-					MLX4_WQE_CTRL_IL4_HDR_CSUM;
-			if (pkt->ol_flags & PKT_TX_OUTER_IP_CKSUM)
-				srcrb.flags |=
-					RTE_BE32(MLX4_WQE_CTRL_IP_HDR_CSUM);
-		} else {
-			srcrb.flags |= RTE_BE32(MLX4_WQE_CTRL_IP_HDR_CSUM |
-						MLX4_WQE_CTRL_TCP_UDP_CSUM);
-		}
-	}
-	if (txq->lb) {
-		/*
-		 * Copy destination MAC address to the WQE, this allows
-		 * loopback in eSwitch, so that VFs and PF can communicate
-		 * with each other.
-		 */
-		srcrb.flags16[0] = *(rte_pktmbuf_mtod(pkt, uint16_t *));
-		ctrl->imm = *(rte_pktmbuf_mtod_offset(pkt, uint32_t *,
-						      sizeof(uint16_t)));
-	} else {
-		ctrl->imm = 0;
-	}
-	ctrl->srcrb_flags = srcrb.flags;
-	/*
-	 * Make sure descriptor is fully written before
-	 * setting ownership bit (because HW can start
-	 * executing as soon as we do).
-	 */
-	rte_wmb();
-	ctrl->owner_opcode = rte_cpu_to_be_32(owner_opcode |
-					      ((sq->head & sq->txbb_cnt) ?
-					       MLX4_BIT_WQE_OWN : 0));
-	sq->head += nr_txbbs;
-	return 0;
-err:
-	rte_errno = rc;
-	return -rc;
+	sq->remain_size -= wqe_size;
+	/* Align next WQE address to the next TXBB. */
+	return (volatile struct mlx4_wqe_ctrl_seg *)
+		((volatile uint8_t *)ctrl + wqe_size);
 }
 
 /**
@@ -495,31 +554,39 @@ mlx4_tx_burst(void *dpdk_txq, struct rte_mbuf **pkts, uint16_t pkts_n)
 	struct txq *txq = (struct txq *)dpdk_txq;
 	unsigned int elts_head = txq->elts_head;
 	const unsigned int elts_n = txq->elts_n;
-	unsigned int elts_comp = 0;
+	const unsigned int elts_m = elts_n - 1;
 	unsigned int bytes_sent = 0;
 	unsigned int i;
-	unsigned int max;
-	int err;
+	unsigned int max = elts_head - txq->elts_tail;
+	struct mlx4_sq *sq = &txq->msq;
+	volatile struct mlx4_wqe_ctrl_seg *ctrl;
+	struct txq_elt *elt;
 
 	assert(txq->elts_comp_cd != 0);
-	mlx4_txq_complete(txq);
-	max = (elts_n - (elts_head - txq->elts_tail));
-	if (max > elts_n)
-		max -= elts_n;
+	if (likely(max >= txq->elts_comp_cd_init))
+		mlx4_txq_complete(txq, elts_m, sq);
+	max = elts_n - max;
 	assert(max >= 1);
 	assert(max <= elts_n);
 	/* Always leave one free entry in the ring. */
 	--max;
-	if (max == 0)
-		return 0;
 	if (max > pkts_n)
 		max = pkts_n;
+	elt = &(*txq->elts)[elts_head & elts_m];
+	/* First Tx burst element saves the next WQE control segment. */
+	ctrl = elt->wqe;
 	for (i = 0; (i != max); ++i) {
 		struct rte_mbuf *buf = pkts[i];
-		unsigned int elts_head_next =
-			(((elts_head + 1) == elts_n) ? 0 : elts_head + 1);
-		struct txq_elt *elt_next = &(*txq->elts)[elts_head_next];
-		struct txq_elt *elt = &(*txq->elts)[elts_head];
+		struct txq_elt *elt_next = &(*txq->elts)[++elts_head & elts_m];
+		uint32_t owner_opcode = sq->owner_opcode;
+		volatile struct mlx4_wqe_data_seg *dseg =
+				(volatile struct mlx4_wqe_data_seg *)(ctrl + 1);
+		volatile struct mlx4_wqe_ctrl_seg *ctrl_next;
+		union {
+			uint32_t flags;
+			uint16_t flags16[2];
+		} srcrb;
+		uint32_t lkey;
 
 		/* Clean up old buffer. */
 		if (likely(elt->buf != NULL)) {
@@ -527,7 +594,7 @@ mlx4_tx_burst(void *dpdk_txq, struct rte_mbuf **pkts, uint16_t pkts_n)
 
 #ifndef NDEBUG
 			/* Poisoning. */
-			memset(elt, 0x66, sizeof(*elt));
+			memset(&elt->buf, 0x66, sizeof(struct rte_mbuf *));
 #endif
 			/* Faster than rte_pktmbuf_free(). */
 			do {
@@ -538,21 +605,105 @@ mlx4_tx_burst(void *dpdk_txq, struct rte_mbuf **pkts, uint16_t pkts_n)
 			} while (tmp != NULL);
 		}
 		RTE_MBUF_PREFETCH_TO_FREE(elt_next->buf);
-		/* Post the packet for sending. */
-		err = mlx4_post_send(txq, buf);
-		if (unlikely(err)) {
-			elt->buf = NULL;
-			goto stop;
+		if (buf->nb_segs == 1) {
+			/* Validate WQE space in the send queue. */
+			if (sq->remain_size < MLX4_TXBB_SIZE) {
+				elt->buf = NULL;
+				break;
+			}
+			lkey = mlx4_txq_mp2mr(txq, mlx4_txq_mb2mp(buf));
+			if (unlikely(lkey == (uint32_t)-1)) {
+				/* MR does not exist. */
+				DEBUG("%p: unable to get MP <-> MR association",
+				      (void *)txq);
+				elt->buf = NULL;
+				break;
+			}
+			mlx4_fill_tx_data_seg(dseg++, lkey,
+					      rte_pktmbuf_mtod(buf, uintptr_t),
+					      rte_cpu_to_be_32(buf->data_len));
+			/* Set WQE size in 16-byte units. */
+			ctrl->fence_size = 0x2;
+			sq->remain_size -= MLX4_TXBB_SIZE;
+			/* Align next WQE address to the next TXBB. */
+			ctrl_next = ctrl + 0x4;
+		} else {
+			ctrl_next = mlx4_tx_burst_segs(buf, txq, ctrl);
+			if (!ctrl_next) {
+				elt->buf = NULL;
+				break;
+			}
 		}
+		/* Hold SQ ring wrap around. */
+		if ((volatile uint8_t *)ctrl_next >= sq->eob) {
+			ctrl_next = (volatile struct mlx4_wqe_ctrl_seg *)
+				((volatile uint8_t *)ctrl_next - sq->size);
+			/* Flip HW valid ownership. */
+			sq->owner_opcode ^= 0x1 << MLX4_SQ_OWNER_BIT;
+		}
+		/*
+		 * For raw Ethernet, the SOLICIT flag is used to indicate
+		 * that no ICRC should be calculated.
+		 */
+		if (--txq->elts_comp_cd == 0) {
+			/* Save the completion burst end address. */
+			elt_next->eocb = (volatile uint32_t *)ctrl_next;
+			txq->elts_comp_cd = txq->elts_comp_cd_init;
+			srcrb.flags = RTE_BE32(MLX4_WQE_CTRL_SOLICIT |
+					       MLX4_WQE_CTRL_CQ_UPDATE);
+		} else {
+			srcrb.flags = RTE_BE32(MLX4_WQE_CTRL_SOLICIT);
+		}
+		/* Enable HW checksum offload if requested */
+		if (txq->csum &&
+		    (buf->ol_flags &
+		     (PKT_TX_IP_CKSUM | PKT_TX_TCP_CKSUM | PKT_TX_UDP_CKSUM))) {
+			const uint64_t is_tunneled = (buf->ol_flags &
+						      (PKT_TX_TUNNEL_GRE |
+						       PKT_TX_TUNNEL_VXLAN));
+
+			if (is_tunneled && txq->csum_l2tun) {
+				owner_opcode |= MLX4_WQE_CTRL_IIP_HDR_CSUM |
+						MLX4_WQE_CTRL_IL4_HDR_CSUM;
+				if (buf->ol_flags & PKT_TX_OUTER_IP_CKSUM)
+					srcrb.flags |=
+					    RTE_BE32(MLX4_WQE_CTRL_IP_HDR_CSUM);
+			} else {
+				srcrb.flags |=
+					RTE_BE32(MLX4_WQE_CTRL_IP_HDR_CSUM |
+						MLX4_WQE_CTRL_TCP_UDP_CSUM);
+			}
+		}
+		if (txq->lb) {
+			/*
+			 * Copy destination MAC address to the WQE, this allows
+			 * loopback in eSwitch, so that VFs and PF can
+			 * communicate with each other.
+			 */
+			srcrb.flags16[0] = *(rte_pktmbuf_mtod(buf, uint16_t *));
+			ctrl->imm = *(rte_pktmbuf_mtod_offset(buf, uint32_t *,
+					      sizeof(uint16_t)));
+		} else {
+			ctrl->imm = 0;
+		}
+		ctrl->srcrb_flags = srcrb.flags;
+		/*
+		 * Make sure descriptor is fully written before
+		 * setting ownership bit (because HW can start
+		 * executing as soon as we do).
+		 */
+		rte_io_wmb();
+		ctrl->owner_opcode = rte_cpu_to_be_32(owner_opcode);
 		elt->buf = buf;
 		bytes_sent += buf->pkt_len;
-		++elts_comp;
-		elts_head = elts_head_next;
+		ctrl = ctrl_next;
+		elt = elt_next;
 	}
-stop:
 	/* Take a shortcut if nothing must be sent. */
 	if (unlikely(i == 0))
 		return 0;
+	/* Save WQE address of the next Tx burst element. */
+	elt->wqe = ctrl;
 	/* Increment send statistics counters. */
 	txq->stats.opackets += i;
 	txq->stats.obytes += bytes_sent;
@@ -560,38 +711,47 @@ stop:
 	rte_wmb();
 	/* Ring QP doorbell. */
 	rte_write32(txq->msq.doorbell_qpn, txq->msq.db);
-	txq->elts_head = elts_head;
-	txq->elts_comp += elts_comp;
+	txq->elts_head += i;
 	return i;
 }
 
 /**
  * Translate Rx completion flags to packet type.
  *
- * @param flags
- *   Rx completion flags returned by mlx4_cqe_flags().
+ * @param[in] cqe
+ *   Pointer to CQE.
  *
  * @return
- *   Packet type in mbuf format.
+ *   Packet type for struct rte_mbuf.
  */
 static inline uint32_t
-rxq_cq_to_pkt_type(uint32_t flags)
+rxq_cq_to_pkt_type(volatile struct mlx4_cqe *cqe,
+		   uint32_t l2tun_offload)
 {
-	uint32_t pkt_type;
+	uint8_t idx = 0;
+	uint32_t pinfo = rte_be_to_cpu_32(cqe->vlan_my_qpn);
+	uint32_t status = rte_be_to_cpu_32(cqe->status);
 
-	if (flags & MLX4_CQE_L2_TUNNEL)
-		pkt_type =
-			mlx4_transpose(flags,
-				       MLX4_CQE_L2_TUNNEL_IPV4,
-				       RTE_PTYPE_L3_IPV4_EXT_UNKNOWN) |
-			mlx4_transpose(flags,
-				       MLX4_CQE_STATUS_IPV4_PKT,
-				       RTE_PTYPE_INNER_L3_IPV4_EXT_UNKNOWN);
-	else
-		pkt_type = mlx4_transpose(flags,
-					  MLX4_CQE_STATUS_IPV4_PKT,
-					  RTE_PTYPE_L3_IPV4_EXT_UNKNOWN);
-	return pkt_type;
+	/*
+	 * The index to the array should have:
+	 *  bit[7] - MLX4_CQE_L2_TUNNEL
+	 *  bit[6] - MLX4_CQE_L2_TUNNEL_IPV4
+	 */
+	if (l2tun_offload && (pinfo & MLX4_CQE_L2_TUNNEL))
+		idx |= ((pinfo & MLX4_CQE_L2_TUNNEL) >> 20) |
+		       ((pinfo & MLX4_CQE_L2_TUNNEL_IPV4) >> 19);
+	/*
+	 * The index to the array should have:
+	 *  bit[5] - MLX4_CQE_STATUS_UDP
+	 *  bit[4] - MLX4_CQE_STATUS_TCP
+	 *  bit[3] - MLX4_CQE_STATUS_IPV4OPT
+	 *  bit[2] - MLX4_CQE_STATUS_IPV6
+	 *  bit[1] - MLX4_CQE_STATUS_IPV4F
+	 *  bit[0] - MLX4_CQE_STATUS_IPV4
+	 * giving a total of up to 256 entries.
+	 */
+	idx |= ((status & MLX4_CQE_STATUS_PTYPE_MASK) >> 22);
+	return mlx4_ptype_table[idx];
 }
 
 /**
@@ -645,7 +805,7 @@ rxq_cq_to_ol_flags(uint32_t flags, int csum, int csum_l2tun)
  *   CQE checksum information.
  */
 static inline uint32_t
-mlx4_cqe_flags(struct mlx4_cqe *cqe, int csum, int csum_l2tun)
+mlx4_cqe_flags(volatile struct mlx4_cqe *cqe, int csum, int csum_l2tun)
 {
 	uint32_t flags = 0;
 
@@ -678,13 +838,13 @@ mlx4_cqe_flags(struct mlx4_cqe *cqe, int csum, int csum_l2tun)
  *   Number of bytes of the CQE, 0 in case there is no completion.
  */
 static unsigned int
-mlx4_cq_poll_one(struct rxq *rxq, struct mlx4_cqe **out)
+mlx4_cq_poll_one(struct rxq *rxq, volatile struct mlx4_cqe **out)
 {
 	int ret = 0;
-	struct mlx4_cqe *cqe = NULL;
+	volatile struct mlx4_cqe *cqe = NULL;
 	struct mlx4_cq *cq = &rxq->mcq;
 
-	cqe = (struct mlx4_cqe *)mlx4_get_cqe(cq, cq->cons_index);
+	cqe = (volatile struct mlx4_cqe *)mlx4_get_cqe(cq, cq->cons_index);
 	if (!!(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK) ^
 	    !!(cq->cons_index & cq->cqe_cnt))
 		goto out;
@@ -729,7 +889,7 @@ mlx4_rx_burst(void *dpdk_rxq, struct rte_mbuf **pkts, uint16_t pkts_n)
 	int len = 0;
 
 	while (pkts_n) {
-		struct mlx4_cqe *cqe;
+		volatile struct mlx4_cqe *cqe;
 		uint32_t idx = rq_ci & wr_cnt;
 		struct rte_mbuf *rep = (*rxq->elts)[idx];
 		volatile struct mlx4_wqe_data_seg *scat = &(*rxq->wqes)[idx];
@@ -774,6 +934,12 @@ mlx4_rx_burst(void *dpdk_rxq, struct rte_mbuf **pkts, uint16_t pkts_n)
 				goto skip;
 			}
 			pkt = seg;
+			/* Update packet information. */
+			pkt->packet_type =
+				rxq_cq_to_pkt_type(cqe, rxq->l2tun_offload);
+			pkt->ol_flags = PKT_RX_RSS_HASH;
+			pkt->hash.rss = cqe->immed_rss_invalid;
+			pkt->pkt_len = len;
 			if (rxq->csum | rxq->csum_l2tun) {
 				uint32_t flags =
 					mlx4_cqe_flags(cqe,
@@ -784,12 +950,7 @@ mlx4_rx_burst(void *dpdk_rxq, struct rte_mbuf **pkts, uint16_t pkts_n)
 					rxq_cq_to_ol_flags(flags,
 							   rxq->csum,
 							   rxq->csum_l2tun);
-				pkt->packet_type = rxq_cq_to_pkt_type(flags);
-			} else {
-				pkt->packet_type = 0;
-				pkt->ol_flags = 0;
 			}
-			pkt->pkt_len = len;
 		}
 		rep->nb_segs = 1;
 		rep->port = rxq->port_id;

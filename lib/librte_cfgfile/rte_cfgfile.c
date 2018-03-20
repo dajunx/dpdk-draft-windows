@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <stdio.h>
@@ -241,6 +212,11 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 
 			split[0] = buffer;
 			split[1] = memchr(buffer, '=', len);
+			if (split[1] == NULL) {
+				printf("Error line %d - no '='"
+					"character found\n", lineno);
+				goto error1;
+			}
 			*split[1] = '\0';
 			split[1]++;
 
@@ -268,7 +244,7 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 				goto error1;
 
 			_add_entry(&cfg->sections[cfg->num_sections - 1],
-					split[0], (split[1] ? split[1] : ""));
+					split[0], split[1]);
 		}
 	}
 	fclose(f);
@@ -298,7 +274,7 @@ rte_cfgfile_create(int flags)
 			CFG_ALLOC_SECTION_BATCH);
 
 	if (cfg->sections == NULL)
-		return NULL;
+		goto error1;
 
 	cfg->allocated_sections = CFG_ALLOC_SECTION_BATCH;
 
@@ -307,7 +283,7 @@ rte_cfgfile_create(int flags)
 			struct rte_cfgfile_entry) * CFG_ALLOC_ENTRY_BATCH);
 
 		if (cfg->sections[i].entries == NULL)
-			return NULL;
+			goto error1;
 
 		cfg->sections[i].num_entries = 0;
 		cfg->sections[i].allocated_entries = CFG_ALLOC_ENTRY_BATCH;
@@ -315,7 +291,21 @@ rte_cfgfile_create(int flags)
 
 	if (flags & CFG_FLAG_GLOBAL_SECTION)
 		rte_cfgfile_add_section(cfg, "GLOBAL");
+
 	return cfg;
+error1:
+	if (cfg->sections != NULL) {
+		for (i = 0; i < cfg->allocated_sections; i++) {
+			if (cfg->sections[i].entries != NULL) {
+				free(cfg->sections[i].entries);
+				cfg->sections[i].entries = NULL;
+			}
+		}
+		free(cfg->sections);
+		cfg->sections = NULL;
+	}
+	free(cfg);
+	return NULL;
 }
 
 int

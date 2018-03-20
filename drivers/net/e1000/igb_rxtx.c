@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2016 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2016 Intel Corporation
  */
 
 #include <sys/queue.h>
@@ -60,7 +31,7 @@
 #include <rte_malloc.h>
 #include <rte_mbuf.h>
 #include <rte_ether.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_prefetch.h>
 #include <rte_udp.h>
 #include <rte_tcp.h>
@@ -597,7 +568,7 @@ eth_igb_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 			 * Set up transmit descriptor.
 			 */
 			slen = (uint16_t) m_seg->data_len;
-			buf_dma_addr = rte_mbuf_data_dma_addr(m_seg);
+			buf_dma_addr = rte_mbuf_data_iova(m_seg);
 			txd->read.buffer_addr =
 				rte_cpu_to_le_64(buf_dma_addr);
 			txd->read.cmd_type_len =
@@ -925,7 +896,7 @@ eth_igb_recv_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 		rxm = rxe->mbuf;
 		rxe->mbuf = nmb;
 		dma_addr =
-			rte_cpu_to_le_64(rte_mbuf_data_dma_addr_default(nmb));
+			rte_cpu_to_le_64(rte_mbuf_data_iova_default(nmb));
 		rxdp->read.hdr_addr = 0;
 		rxdp->read.pkt_addr = dma_addr;
 
@@ -1119,7 +1090,7 @@ eth_igb_recv_scattered_pkts(void *rx_queue, struct rte_mbuf **rx_pkts,
 		 */
 		rxm = rxe->mbuf;
 		rxe->mbuf = nmb;
-		dma = rte_cpu_to_le_64(rte_mbuf_data_dma_addr_default(nmb));
+		dma = rte_cpu_to_le_64(rte_mbuf_data_iova_default(nmb));
 		rxdp->read.pkt_addr = dma;
 		rxdp->read.hdr_addr = 0;
 
@@ -1553,7 +1524,7 @@ eth_igb_tx_queue_setup(struct rte_eth_dev *dev,
 	txq->port_id = dev->data->port_id;
 
 	txq->tdt_reg_addr = E1000_PCI_REG_ADDR(hw, E1000_TDT(txq->reg_idx));
-	txq->tx_ring_phys_addr = tz->phys_addr;
+	txq->tx_ring_phys_addr = tz->iova;
 
 	txq->tx_ring = (union e1000_adv_tx_desc *) tz->addr;
 	/* Allocate software ring */
@@ -1690,7 +1661,7 @@ eth_igb_rx_queue_setup(struct rte_eth_dev *dev,
 	}
 	rxq->rdt_reg_addr = E1000_PCI_REG_ADDR(hw, E1000_RDT(rxq->reg_idx));
 	rxq->rdh_reg_addr = E1000_PCI_REG_ADDR(hw, E1000_RDH(rxq->reg_idx));
-	rxq->rx_ring_phys_addr = rz->phys_addr;
+	rxq->rx_ring_phys_addr = rz->iova;
 	rxq->rx_ring = (union e1000_adv_rx_desc *) rz->addr;
 
 	/* Allocate software ring. */
@@ -2203,7 +2174,7 @@ igb_alloc_rx_queue_mbufs(struct igb_rx_queue *rxq)
 			return -ENOMEM;
 		}
 		dma_addr =
-			rte_cpu_to_le_64(rte_mbuf_data_dma_addr_default(mbuf));
+			rte_cpu_to_le_64(rte_mbuf_data_iova_default(mbuf));
 		rxd = &rxq->rx_ring[i];
 		rxd->read.hdr_addr = 0;
 		rxd->read.pkt_addr = dma_addr;
@@ -2785,4 +2756,65 @@ igb_txq_info_get(struct rte_eth_dev *dev, uint16_t queue_id,
 	qinfo->conf.tx_thresh.pthresh = txq->pthresh;
 	qinfo->conf.tx_thresh.hthresh = txq->hthresh;
 	qinfo->conf.tx_thresh.wthresh = txq->wthresh;
+}
+
+int
+igb_config_rss_filter(struct rte_eth_dev *dev,
+		struct igb_rte_flow_rss_conf *conf, bool add)
+{
+	uint32_t shift;
+	uint16_t i, j;
+	struct rte_eth_rss_conf rss_conf = conf->rss_conf;
+	struct e1000_filter_info *filter_info =
+		E1000_DEV_PRIVATE_TO_FILTER_INFO(dev->data->dev_private);
+	struct e1000_hw *hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	hw = E1000_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+
+	if (!add) {
+		if (memcmp(conf, &filter_info->rss_info,
+			sizeof(struct igb_rte_flow_rss_conf)) == 0) {
+			igb_rss_disable(dev);
+			memset(&filter_info->rss_info, 0,
+				sizeof(struct igb_rte_flow_rss_conf));
+			return 0;
+		}
+		return -EINVAL;
+	}
+
+	if (filter_info->rss_info.num)
+		return -EINVAL;
+
+	/* Fill in redirection table. */
+	shift = (hw->mac.type == e1000_82575) ? 6 : 0;
+	for (i = 0, j = 0; i < 128; i++, j++) {
+		union e1000_reta {
+			uint32_t dword;
+			uint8_t  bytes[4];
+		} reta;
+		uint8_t q_idx;
+
+		q_idx = conf->queue[j];
+		if (j == conf->num)
+			j = 0;
+		reta.bytes[i & 3] = (uint8_t)(q_idx << shift);
+		if ((i & 3) == 3)
+			E1000_WRITE_REG(hw, E1000_RETA(i >> 2), reta.dword);
+	}
+
+	/* Configure the RSS key and the RSS protocols used to compute
+	 * the RSS hash of input packets.
+	 */
+	if ((rss_conf.rss_hf & IGB_RSS_OFFLOAD_ALL) == 0) {
+		igb_rss_disable(dev);
+		return 0;
+	}
+	if (rss_conf.rss_key == NULL)
+		rss_conf.rss_key = rss_intel_key; /* Default hash key */
+	igb_hw_rss_hash_set(hw, &rss_conf);
+
+	rte_memcpy(&filter_info->rss_info,
+		conf, sizeof(struct igb_rte_flow_rss_conf));
+
+	return 0;
 }

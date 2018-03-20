@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #ifndef _RTE_IP_FRAG_H_
@@ -48,6 +19,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
+#include <rte_config.h>
 #include <rte_malloc.h>
 #include <rte_memory.h>
 #include <rte_ip.h>
@@ -70,7 +42,7 @@ struct ip_frag {
 	struct rte_mbuf *mb;   /**< fragment mbuf */
 };
 
-/** @internal <src addr, dst_addr, id> to uniquely indetify fragmented datagram. */
+/** @internal <src addr, dst_addr, id> to uniquely identify fragmented datagram. */
 struct ip_frag_key {
 	uint64_t src_dst[4];      /**< src address, first 8 bytes used for IPv4 */
 	uint32_t id;           /**< dst address */
@@ -118,7 +90,7 @@ struct rte_ip_frag_tbl {
 	uint32_t             entry_mask;      /**< hash value mask. */
 	uint32_t             max_entries;     /**< max entries allowed. */
 	uint32_t             use_entries;     /**< entries in use. */
-	uint32_t             bucket_entries;  /**< hash assocaitivity. */
+	uint32_t             bucket_entries;  /**< hash associativity. */
 	uint32_t             nb_entries;      /**< total size of the table. */
 	uint32_t             nb_buckets;      /**< num of associativity lines. */
 	struct ip_frag_pkt *last;         /**< last used entry. */
@@ -303,7 +275,7 @@ int32_t rte_ipv4_fragment_packet(struct rte_mbuf *pkt_in,
  * @param ip_hdr
  *   Pointer to the IPV4 header inside the fragment.
  * @return
- *   Pointer to mbuf for reassebled packet, or NULL if:
+ *   Pointer to mbuf for reassembled packet, or NULL if:
  *   - an error occurred.
  *   - not all fragments of the packet are collected yet.
  */

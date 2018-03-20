@@ -1,35 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   Copyright 2013-2014 6WIND S.A.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation.
+ * Copyright 2013-2014 6WIND S.A.
  */
 
 #include <string.h>
@@ -46,7 +17,6 @@
 #include <rte_bus.h>
 #include <rte_per_lcore.h>
 #include <rte_memory.h>
-#include <rte_memzone.h>
 #include <rte_eal.h>
 #include <rte_string_fns.h>
 #include <rte_common.h>
@@ -127,13 +97,6 @@ eal_parse_pci_DomBDF(const char *input, struct rte_pci_addr *dev_addr)
 
 void
 rte_pci_device_name(const struct rte_pci_addr *addr,
-		    char *output, size_t size)
-{
-	pci_device_name(addr, output, size);
-}
-
-void
-pci_device_name(const struct rte_pci_addr *addr,
 		char *output, size_t size)
 {
 	RTE_VERIFY(size >= PCI_PRI_STR_SIZE);
@@ -146,11 +109,11 @@ int
 rte_eal_compare_pci_addr(const struct rte_pci_addr *addr,
 			 const struct rte_pci_addr *addr2)
 {
-	return pci_addr_cmp(addr, addr2);
+	return rte_pci_addr_cmp(addr, addr2);
 }
 
 int
-pci_addr_cmp(const struct rte_pci_addr *addr,
+rte_pci_addr_cmp(const struct rte_pci_addr *addr,
 	     const struct rte_pci_addr *addr2)
 {
 	uint64_t dev_addr, dev_addr2;
@@ -172,7 +135,7 @@ pci_addr_cmp(const struct rte_pci_addr *addr,
 }
 
 int
-pci_addr_parse(const char *str, struct rte_pci_addr *addr)
+rte_pci_addr_parse(const char *str, struct rte_pci_addr *addr)
 {
 	if (pci_bdf_parse(str, addr) == 0 ||
 	    pci_dbdf_parse(str, addr) == 0)

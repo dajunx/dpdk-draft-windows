@@ -49,7 +49,7 @@ struct bnxt_tx_ring_info {
 	struct tx_bd_long	*tx_desc_ring;
 	struct bnxt_sw_tx_bd	*tx_buf_ring;
 
-	phys_addr_t		tx_desc_mapping;
+	rte_iova_t		tx_desc_mapping;
 
 #define BNXT_DEV_STATE_CLOSING	0x1
 	uint32_t		dev_state;
@@ -68,6 +68,8 @@ int bnxt_init_one_tx_ring(struct bnxt_tx_queue *txq);
 int bnxt_init_tx_ring_struct(struct bnxt_tx_queue *txq, unsigned int socket_id);
 uint16_t bnxt_xmit_pkts(void *tx_queue, struct rte_mbuf **tx_pkts,
 			       uint16_t nb_pkts);
+int bnxt_tx_queue_start(struct rte_eth_dev *dev, uint16_t tx_queue_id);
+int bnxt_tx_queue_stop(struct rte_eth_dev *dev, uint16_t tx_queue_id);
 
 #define PKT_TX_OIP_IIP_TCP_UDP_CKSUM	(PKT_TX_TCP_CKSUM | PKT_TX_UDP_CKSUM | \
 					PKT_TX_IP_CKSUM | PKT_TX_OUTER_IP_CKSUM)

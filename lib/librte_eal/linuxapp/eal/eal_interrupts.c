@@ -1,34 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
  */
 
 #include <stdio.h>
@@ -51,7 +22,6 @@
 #include <rte_common.h>
 #include <rte_interrupts.h>
 #include <rte_memory.h>
-#include <rte_memzone.h>
 #include <rte_launch.h>
 #include <rte_eal.h>
 #include <rte_per_lcore.h>
@@ -64,7 +34,6 @@
 #include <rte_errno.h>
 #include <rte_spinlock.h>
 #include <rte_pause.h>
-#include <rte_vfio.h>
 
 #include "eal_private.h"
 #include "eal_vfio.h"
@@ -914,7 +883,7 @@ static void
 eal_intr_proc_rxtx_intr(int fd, const struct rte_intr_handle *intr_handle)
 {
 	union rte_intr_read_buffer buf;
-	int bytes_read = 1;
+	int bytes_read = 0;
 	int nbytes;
 
 	switch (intr_handle->type) {
@@ -930,11 +899,9 @@ eal_intr_proc_rxtx_intr(int fd, const struct rte_intr_handle *intr_handle)
 		break;
 #endif
 	case RTE_INTR_HANDLE_VDEV:
-		/* for vdev, fd points to:
-		 * a. eventfd which does not need to read out;
-		 * b. datapath fd which needs PMD to read out.
-		 */
-		return;
+		bytes_read = intr_handle->efd_counter_size;
+		/* For vdev, number of bytes to read is set by driver */
+		break;
 	case RTE_INTR_HANDLE_EXT:
 		return;
 	default:
@@ -947,6 +914,8 @@ eal_intr_proc_rxtx_intr(int fd, const struct rte_intr_handle *intr_handle)
 	 * read out to clear the ready-to-be-read flag
 	 * for epoll_wait.
 	 */
+	if (bytes_read == 0)
+		return;
 	do {
 		nbytes = read(fd, &buf, bytes_read);
 		if (nbytes < 0) {
@@ -1206,7 +1175,12 @@ rte_intr_efd_enable(struct rte_intr_handle *intr_handle, uint32_t nb_efd)
 		intr_handle->nb_efd   = n;
 		intr_handle->max_intr = NB_OTHER_INTR + n;
 	} else if (intr_handle->type == RTE_INTR_HANDLE_VDEV) {
-		/* do nothing, and let vdev driver to initialize this struct */
+		/* only check, initialization would be done in vdev driver.*/
+		if (intr_handle->efd_counter_size >
+		    sizeof(union rte_intr_read_buffer)) {
+			RTE_LOG(ERR, EAL, "the efd_counter_size is oversized");
+			return -EINVAL;
+		}
 	} else {
 		intr_handle->efds[0]  = intr_handle->fd;
 		intr_handle->nb_efd   = RTE_MIN(nb_efd, 1U);

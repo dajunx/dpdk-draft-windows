@@ -132,5 +132,3 @@ static bool pci_check_and_mask_intx(struct pci_dev *pdev)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
 #define HAVE_PCI_MSI_MASK_IRQ 1
 #endif
-
-

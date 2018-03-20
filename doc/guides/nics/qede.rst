@@ -1,39 +1,12 @@
-..  BSD LICENSE
-    Copyright (c) 2016 QLogic Corporation
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-
-    * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-    * Neither the name of QLogic Corporation nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+..  SPDX-License-Identifier: BSD-3-Clause
+    Copyright(c) 2016 QLogic Corporation
+    Copyright(c) 2017 Cavium, Inc
 
 QEDE Poll Mode Driver
 ======================
 
 The QEDE poll mode driver library (**librte_pmd_qede**) implements support
-for **QLogic FastLinQ QL4xxxx 10G/25G/40G/50G/100G CNA** family of adapters as well
-as their virtual functions (VF) in SR-IOV context. It is supported on
+for **QLogic FastLinQ QL4xxxx 10G/25G/40G/50G/100G Intelligent Ethernet Adapters (IEA) and Converged Network Adapters (CNA)** family of adapters as well as SR-IOV virtual functions (VF). It is supported on
 several standard Linux distros like RHEL7.x, SLES12.x and Ubuntu.
 It is compile-tested under FreeBSD OS.
 
@@ -48,43 +21,62 @@ Supported Features
 - Allmulti mode
 - Port hardware statistics
 - Jumbo frames
-- VLAN offload - Filtering and stripping
-- Stateless checksum offloads (IPv4/TCP/UDP)
+- Multiple MAC address
+- MTU change
+- Default pause flow control
+- Multiprocess aware
+- Scatter-Gather
 - Multiple Rx/Tx queues
 - RSS (with RETA/hash table/key)
 - TSS
-- Multiple MAC address
-- Default pause flow control
-- SR-IOV VF
-- MTU change
-- Multiprocess aware
-- Scatter-Gather
-- VXLAN tunneling offload
-- N-tuple filter and flow director (limited support)
+- Stateless checksum offloads (IPv4/IPv6/TCP/UDP)
 - LRO/TSO
+- VLAN offload - Filtering and stripping
+- N-tuple filter and flow director (limited support)
 - NPAR (NIC Partitioning)
+- SR-IOV VF
+- VXLAN Tunneling offload
+- GENEVE Tunneling offload
+- MPLSoUDP Tx Tunneling offload
 
 Non-supported Features
 ----------------------
 
 - SR-IOV PF
-- GENEVE and NVGRE Tunneling offloads
+- GRE and NVGRE Tunneling offloads
+
+Co-existence considerations
+---------------------------
+- QLogic FastLinQ QL4xxxx CNAs can have both NIC and Storage personalities. However, coexistence with storage protocol drivers (qedi and qedf) is not supported on the same adapter. So storage personality has to be disabled on that adapter when used in DPDK applications.
+- For SR-IOV case, qede PMD will be used to bind to SR-IOV VF device and Linux native kernel driver (qede) will be attached to SR-IOV PF.
 
 Supported QLogic Adapters
 -------------------------
 
-- QLogic FastLinQ QL4xxxx 10G/25G/40G/50G/100G CNAs.
+- QLogic FastLinQ QL4xxxx 10G/25G/40G/50G/100G Intelligent Ethernet Adapters (IEA) and Converged Network Adapters (CNA)
 
 Prerequisites
 -------------
 
-- Requires firmware version **8.18.x.** and management firmware
-  version **8.18.x or higher**. Firmware may be available
+- Requires storm firmware version **8.30.12.0**. Firmware may be available
   inbox in certain newer Linux distros under the standard directory
-  ``E.g. /lib/firmware/qed/qed_init_values-8.18.9.0.bin``
+  ``E.g. /lib/firmware/qed/qed_init_values-8.30.12.0.bin``
+  If the required firmware files are not available then download it from
+  `QLogic Driver Download Center <http://driverdownloads.qlogic.com/QLogicDriverDownloads_UI/DefaultNewSearch.aspx>`_.
+  For downloading firmware file, select adapter category, model and DPDK Poll Mode Driver.
 
-- If the required firmware files are not available then visit
-  `QLogic Driver Download Center <http://driverdownloads.qlogic.com>`_.
+- Requires management firmware (MFW) version **8.30.x.x** or higher to be
+  flashed on to the adapter. If the required management firmware is not
+  available then download from
+  `QLogic Driver Download Center <http://driverdownloads.qlogic.com/QLogicDriverDownloads_UI/DefaultNewSearch.aspx>`_.
+  For downloading firmware upgrade utility, select adapter category, model and Linux distro.
+  To flash the management firmware refer to the instructions in the QLogic Firmware Upgrade Utility Readme document.
+
+- SR-IOV requires Linux PF driver version **8.20.x.x** or higher.
+  If the required PF driver is not available then download it from
+  `QLogic Driver Download Center <http://driverdownloads.qlogic.com/QLogicDriverDownloads_UI/DefaultNewSearch.aspx>`_.
+  For downloading PF driver, select adapter category, model and Linux distro.
+
 
 Performance note
 ~~~~~~~~~~~~~~~~
@@ -101,14 +93,6 @@ enabling debugging options may affect system performance.
 
   Toggle compilation of QEDE PMD driver.
 
-- ``CONFIG_RTE_LIBRTE_QEDE_DEBUG_INFO`` (default **n**)
-
-  Toggle display of generic debugging messages.
-
-- ``CONFIG_RTE_LIBRTE_QEDE_DEBUG_DRIVER`` (default **n**)
-
-  Toggle display of ecore related messages.
-
 - ``CONFIG_RTE_LIBRTE_QEDE_DEBUG_TX`` (default **n**)
 
   Toggle display of transmit fast path run-time messages.
@@ -120,9 +104,11 @@ enabling debugging options may affect system performance.
 - ``CONFIG_RTE_LIBRTE_QEDE_FW`` (default **""**)
 
   Gives absolute path of firmware file.
-  ``Eg: "/lib/firmware/qed/qed_init_values_zipped-8.18.9.0.bin"``
+  ``Eg: "/lib/firmware/qed/qed_init_values-8.30.12.0.bin"``
   Empty string indicates driver will pick up the firmware file
-  from the default location.
+  from the default location /lib/firmware/qed.
+  CAUTION this option is more for custom firmware, it is not
+  recommended for use under normal condition.
 
 Driver compilation and testing
 ------------------------------
@@ -135,7 +121,7 @@ SR-IOV: Prerequisites and Sample Application Notes
 
 This section provides instructions to configure SR-IOV with Linux OS.
 
-**Note**: librte_pmd_qede will be used to bind to SR-IOV VF device and Linux native kernel driver (QEDE) will function as SR-IOV PF driver. Requires PF driver to be 8.10.x.x or higher.
+**Note**: librte_pmd_qede will be used to bind to SR-IOV VF device and Linux native kernel driver (qede) will function as SR-IOV PF driver. Requires PF driver to be 8.10.x.x or higher.
 
 #. Verify SR-IOV and ARI capability is enabled on the adapter using ``lspci``:
 
@@ -207,7 +193,7 @@ This section provides instructions to configure SR-IOV with Linux OS.
 
 
 #. Running testpmd
-   (Enable QEDE_DEBUG_INFO=y to view informational messages):
+   (Supply ``--log-level="pmd.net.qede.driver",7`` to view informational messages):
 
    Refer to the document
    :ref:`compiling and testing a PMD for a NIC <pmd_build_and_test>` to run

@@ -40,10 +40,11 @@
 
 #include <rte_pci.h>
 #include <rte_bus_pci.h>
-#include <rte_ethdev.h>
+#include <rte_ethdev_driver.h>
 #include <rte_memory.h>
 #include <rte_lcore.h>
 #include <rte_spinlock.h>
+#include <rte_time.h>
 
 #include "bnxt_cpr.h"
 
@@ -133,7 +134,7 @@ struct bnxt_pf_info {
 	uint16_t		max_vfs;
 	uint32_t		func_cfg_flags;
 	void			*vf_req_buf;
-	phys_addr_t		vf_req_buf_dma_addr;
+	rte_iova_t		vf_req_buf_dma_addr;
 	uint32_t		vf_req_fwd[8];
 	uint16_t		total_vnics;
 	struct bnxt_child_vf_info	*vf_info;
@@ -162,8 +163,11 @@ struct bnxt_link_info {
 	uint16_t		link_speed;
 	uint16_t		support_speeds;
 	uint16_t		auto_link_speed;
+	uint16_t		force_link_speed;
 	uint16_t		auto_link_speed_mask;
 	uint32_t		preemphasis;
+	uint8_t			phy_type;
+	uint8_t			media_type;
 };
 
 #define BNXT_COS_QUEUE_COUNT	8
@@ -176,6 +180,53 @@ struct rte_flow {
 	STAILQ_ENTRY(rte_flow) next;
 	struct bnxt_filter_info *filter;
 	struct bnxt_vnic_info	*vnic;
+};
+
+struct bnxt_ptp_cfg {
+#define BNXT_GRCPF_REG_WINDOW_BASE_OUT  0x400
+#define BNXT_GRCPF_REG_SYNC_TIME        0x480
+#define BNXT_CYCLECOUNTER_MASK   0xffffffffffffffffULL
+	struct rte_timecounter      tc;
+	struct rte_timecounter      tx_tstamp_tc;
+	struct rte_timecounter      rx_tstamp_tc;
+	struct bnxt		*bp;
+#define BNXT_MAX_TX_TS	1
+	uint16_t			rxctl;
+#define BNXT_PTP_MSG_SYNC			(1 << 0)
+#define BNXT_PTP_MSG_DELAY_REQ			(1 << 1)
+#define BNXT_PTP_MSG_PDELAY_REQ			(1 << 2)
+#define BNXT_PTP_MSG_PDELAY_RESP		(1 << 3)
+#define BNXT_PTP_MSG_FOLLOW_UP			(1 << 8)
+#define BNXT_PTP_MSG_DELAY_RESP			(1 << 9)
+#define BNXT_PTP_MSG_PDELAY_RESP_FOLLOW_UP	(1 << 10)
+#define BNXT_PTP_MSG_ANNOUNCE			(1 << 11)
+#define BNXT_PTP_MSG_SIGNALING			(1 << 12)
+#define BNXT_PTP_MSG_MANAGEMENT			(1 << 13)
+#define BNXT_PTP_MSG_EVENTS		(BNXT_PTP_MSG_SYNC |		\
+					 BNXT_PTP_MSG_DELAY_REQ |	\
+					 BNXT_PTP_MSG_PDELAY_REQ |	\
+					 BNXT_PTP_MSG_PDELAY_RESP)
+	uint8_t			tx_tstamp_en:1;
+	int			rx_filter;
+
+#define BNXT_PTP_RX_TS_L	0
+#define BNXT_PTP_RX_TS_H	1
+#define BNXT_PTP_RX_SEQ		2
+#define BNXT_PTP_RX_FIFO	3
+#define BNXT_PTP_RX_FIFO_PENDING 0x1
+#define BNXT_PTP_RX_FIFO_ADV	4
+#define BNXT_PTP_RX_REGS	5
+
+#define BNXT_PTP_TX_TS_L	0
+#define BNXT_PTP_TX_TS_H	1
+#define BNXT_PTP_TX_SEQ		2
+#define BNXT_PTP_TX_FIFO	3
+#define BNXT_PTP_TX_FIFO_EMPTY	 0x2
+#define BNXT_PTP_TX_REGS	4
+	uint32_t			rx_regs[BNXT_PTP_RX_REGS];
+	uint32_t			rx_mapped_regs[BNXT_PTP_RX_REGS];
+	uint32_t			tx_regs[BNXT_PTP_TX_REGS];
+	uint32_t			tx_mapped_regs[BNXT_PTP_TX_REGS];
 };
 
 #define BNXT_HWRM_SHORT_REQ_LEN		sizeof(struct hwrm_short_input)
@@ -193,24 +244,28 @@ struct bnxt {
 #define BNXT_FLAG_JUMBO		(1 << 3)
 #define BNXT_FLAG_SHORT_CMD	(1 << 4)
 #define BNXT_FLAG_UPDATE_HASH	(1 << 5)
+#define BNXT_FLAG_PTP_SUPPORTED	(1 << 6)
+#define BNXT_FLAG_MULTI_HOST    (1 << 7)
+#define BNXT_FLAG_INIT_DONE	(1 << 31)
 #define BNXT_PF(bp)		(!((bp)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
-#define BNXT_NPAR_ENABLED(bp)	((bp)->port_partition_type)
-#define BNXT_NPAR_PF(bp)	(BNXT_PF(bp) && BNXT_NPAR_ENABLED(bp))
+#define BNXT_NPAR(bp)		((bp)->port_partition_type)
+#define BNXT_MH(bp)             ((bp)->flags & BNXT_FLAG_MULTI_HOST)
+#define BNXT_SINGLE_PF(bp)      (BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 
 	unsigned int		rx_nr_rings;
 	unsigned int		rx_cp_nr_rings;
 	struct bnxt_rx_queue **rx_queues;
 	const void		*rx_mem_zone;
 	struct rx_port_stats    *hw_rx_port_stats;
-	phys_addr_t		hw_rx_port_stats_map;
+	rte_iova_t		hw_rx_port_stats_map;
 
 	unsigned int		tx_nr_rings;
 	unsigned int		tx_cp_nr_rings;
 	struct bnxt_tx_queue **tx_queues;
 	const void		*tx_mem_zone;
 	struct tx_port_stats    *hw_tx_port_stats;
-	phys_addr_t		hw_tx_port_stats_map;
+	rte_iova_t		hw_tx_port_stats_map;
 
 	/* Default completion ring */
 	struct bnxt_cp_ring_info	*def_cp_ring;
@@ -236,9 +291,9 @@ struct bnxt {
 
 	uint16_t			hwrm_cmd_seq;
 	void				*hwrm_cmd_resp_addr;
-	phys_addr_t			hwrm_cmd_resp_dma_addr;
+	rte_iova_t			hwrm_cmd_resp_dma_addr;
 	void				*hwrm_short_cmd_req_addr;
-	phys_addr_t			hwrm_short_cmd_req_dma_addr;
+	rte_iova_t			hwrm_short_cmd_req_dma_addr;
 	rte_spinlock_t			hwrm_lock;
 	uint16_t			max_req_len;
 	uint16_t			max_resp_len;
@@ -270,6 +325,7 @@ struct bnxt {
 
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 	uint8_t			num_leds;
+	struct bnxt_ptp_cfg     *ptp_cfg;
 };
 
 int bnxt_link_update_op(struct rte_eth_dev *eth_dev, int wait_to_complete);
@@ -279,4 +335,12 @@ int bnxt_rcv_msg_from_vf(struct bnxt *bp, uint16_t vf_id, void *msg);
 
 bool is_bnxt_supported(struct rte_eth_dev *dev);
 extern const struct rte_flow_ops bnxt_flow_ops;
+
+extern int bnxt_logtype_driver;
+#define PMD_DRV_LOG_RAW(level, fmt, args...) \
+	rte_log(RTE_LOG_ ## level, bnxt_logtype_driver, "%s(): " fmt, \
+		__func__, ## args)
+
+#define PMD_DRV_LOG(level, fmt, args...) \
+	PMD_DRV_LOG_RAW(level, fmt, ## args)
 #endif
