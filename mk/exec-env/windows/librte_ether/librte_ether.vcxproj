@@ -17,6 +17,7 @@
     <ClCompile Include="..\..\..\..\lib\librte_ether\ethdev_profile.c" />
     <ClCompile Include="..\..\..\..\lib\librte_ether\rte_ethdev.c" />
     <ClCompile Include="..\..\..\..\lib\librte_ether\rte_flow.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ether\rte_mtr.c" />
     <ClCompile Include="..\..\..\..\lib\librte_ether\rte_tm.c" />
   </ItemGroup>
   <ItemGroup>
@@ -49,13 +50,19 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_per_lcore.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_spinlock.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\ethdev_profile.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_dev_info.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev_core.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev_driver.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev_pci.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ether.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_eth_ctrl.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_flow.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_flow_driver.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_mtr.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_mtr_driver.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ether\rte_tm.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_tm_driver.h" />
     <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.h" />
     <ClInclude Include="..\..\..\..\lib\librte_mempool\rte_mempool.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring.h" />

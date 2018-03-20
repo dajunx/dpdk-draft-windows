@@ -37,6 +37,7 @@
 
 #include <SetupAPI.h>
 #include <devguid.h>
+#include <winioctl.h>
 
 #include <rte_string_fns.h>
 #include <rte_eal_memconfig.h>
@@ -177,8 +178,8 @@ int send_ioctl(HANDLE f, DWORD ioctl,
 	DWORD dwError = ERROR_SUCCESS;
 
 	bResult = DeviceIoControl(f, ioctl, input_buf, input_buf_size,
-				    output_buf, output_buf_size,
-				    &results_sz, NULL);
+				  output_buf, output_buf_size,
+				  &results_sz, NULL);
 
 	if (!bResult) {
 		dwError = GetLastError();
@@ -276,15 +277,55 @@ int get_device_resource_info(HDEVINFO hDevInfo, PSP_DEVINFO_DATA pDeviceInfoData
 
 	/* Open the driver */
 	TCHAR   device_name[MAX_DEVICENAME_SZ];
+	HANDLE  f = INVALID_HANDLE_VALUE;
+	PSP_DEVICE_INTERFACE_DETAIL_DATA dev_interface_detail = NULL;
+	DWORD   dwError = 0;
 
-	/* Construct the driver name using B:D:F */
-	_stprintf_s(device_name, NETUIO_DEVICENAME_SZ, _T("\\\\.\\%s_%04d%02d%02d"),
-							NETUIO_DRIVER_NAME, dev->addr.bus, dev->addr.devid, dev->addr.function);
-	//_tprintf(_T("Devicename=%s\n"), device_name);
+	/* Obtain the netUIO driver interface (if available) for this device */
+	DWORD   required_size = 0;
+	TCHAR   dev_instance_id[MAX_DEVICENAME_SZ];
 
-	HANDLE f = CreateFile(device_name, GENERIC_READ | GENERIC_WRITE,
-					FILE_SHARE_READ | FILE_SHARE_WRITE,
-					NULL, OPEN_EXISTING, 0, NULL);
+	/* Retrieve the device instance ID */
+	SetupDiGetDeviceInstanceId(hDevInfo, pDeviceInfoData,
+				   dev_instance_id, sizeof(dev_instance_id), &required_size);
+	//_tprintf(_T("Device_instance_id=%s\n"), device_instance_id);
+
+	/* Obtain the device information set */
+	HDEVINFO hd = SetupDiGetClassDevs(&GUID_DEVINTERFACE_netUIO, dev_instance_id,
+					  NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+	if (hd == INVALID_HANDLE_VALUE)
+		goto end;
+
+	SP_DEVICE_INTERFACE_DATA  dev_interface_data = { 0 };
+	dev_interface_data.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+
+	/* Enumerate the netUIO interfaces for this device information set */
+	/* If it fails, it implies that the netUIO interface is not available for this device */
+	if (!SetupDiEnumDeviceInterfaces(hd, 0, &GUID_DEVINTERFACE_netUIO, 0, &dev_interface_data)) {
+		dwError = GetLastError();
+		goto end;
+	}
+
+	required_size = 0;
+	if (!SetupDiGetDeviceInterfaceDetail(hd, &dev_interface_data, NULL, 0, &required_size, NULL)) {
+		dwError = GetLastError();
+		if (dwError != ERROR_INSUFFICIENT_BUFFER)  /* ERROR_INSUFFICIENT_BUFFER is expected */
+			goto end;
+	}
+
+	dev_interface_detail = malloc(required_size);
+	dev_interface_detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
+
+	if (!SetupDiGetDeviceInterfaceDetail(hd, &dev_interface_data,
+					     dev_interface_detail, required_size, NULL, NULL)) {
+		dwError = GetLastError();
+		goto end;
+	}
+
+	f = CreateFile(dev_interface_detail->DevicePath,
+			GENERIC_READ | GENERIC_WRITE,
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+			NULL, OPEN_EXISTING, 0, NULL);
 
 	if (f == INVALID_HANDLE_VALUE) {
 		//RTE_LOG(DEBUG, EAL, "Unable to open driver file \"%s\".\n", device_name);
@@ -317,6 +358,12 @@ int get_device_resource_info(HDEVINFO hDevInfo, PSP_DEVINFO_DATA pDeviceInfoData
 end:
 	if (f != INVALID_HANDLE_VALUE)
 		CloseHandle(f);
+
+	if (dev_interface_detail)
+		free(dev_interface_detail);
+
+	if (hd != INVALID_HANDLE_VALUE)
+		SetupDiDestroyDeviceInfoList(hd);
 
 	return ret;
 }

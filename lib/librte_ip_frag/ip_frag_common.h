@@ -11,7 +11,11 @@
 #ifdef RTE_LIBRTE_IP_FRAG_DEBUG
 #define	IP_FRAG_LOG(lvl, fmt, args...)	RTE_LOG(lvl, USER1, fmt, ##args)
 #else
+#ifndef _WIN64
 #define	IP_FRAG_LOG(lvl, fmt, args...)	do {} while(0)
+#else
+#define	IP_FRAG_LOG(lvl, fmt, ...)	do {} while(0)
+#endif
 #endif /* IP_FRAG_DEBUG */
 
 #define IPV4_KEYLEN 1

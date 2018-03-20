@@ -126,7 +126,22 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_bus.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_vdev.c">
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\fork.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\setenv.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\termios.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_hypervisor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_keepalive.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_reciprocal.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

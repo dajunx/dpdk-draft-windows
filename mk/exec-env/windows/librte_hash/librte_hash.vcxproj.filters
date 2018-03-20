@@ -56,5 +56,14 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\arch\x86\rte_rtm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_cuckoo_hash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_hash_crc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_thash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

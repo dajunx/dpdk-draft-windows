@@ -13,11 +13,6 @@
 #include <rte_per_lcore.h>
 #include <rte_lcore.h>
 #include <rte_debug.h>
-
-#ifdef _WIN64
-#undef typeof
-#define typeof(x) uintptr_t
-#endif
 #include <rte_common.h>
 #include <rte_spinlock.h>
 

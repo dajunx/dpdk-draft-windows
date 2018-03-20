@@ -180,6 +180,9 @@ error_exit:
 
 #else /* RTE_PORT_PCAP */
 
+#ifdef _WIN64
+#define PCAP_SOURCE_LOAD(port, file_name, n_bytes, socket_id)	(file_name ? -1 : 0)
+#else
 #define PCAP_SOURCE_LOAD(port, file_name, n_bytes, socket_id)	\
 ({								\
 	int _ret = 0;						\
@@ -192,6 +195,7 @@ error_exit:
 								\
 	_ret;							\
 })
+#endif
 
 #endif /* RTE_PORT_PCAP */
 
@@ -436,6 +440,9 @@ do {								\
 
 #else
 
+#ifdef _WIN64
+#define PCAP_SINK_OPEN(port, file_name, max_n_pkts)		(file_name ? -1 : 0)
+#else
 #define PCAP_SINK_OPEN(port, file_name, max_n_pkts)		\
 ({								\
 	int _ret = 0;						\
@@ -448,6 +455,7 @@ do {								\
 								\
 	_ret;							\
 })
+#endif
 
 #define PCAP_SINK_WRITE_PKT(port, mbuf) {}
 

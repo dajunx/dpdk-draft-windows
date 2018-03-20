@@ -22,11 +22,22 @@ extern "C" {
  * lo - contains low 32 bits of given N transitions.
  * hi - contains high 32 bits of given N transitions.
  */
+#ifndef _WIN64
 #define	ACL_TR_HILO(P, TC, tr0, tr1, lo, hi)                        do { \
 	lo = (typeof(lo))_##P##_shuffle_ps((TC)(tr0), (TC)(tr1), 0x88);  \
 	hi = (typeof(hi))_##P##_shuffle_ps((TC)(tr0), (TC)(tr1), 0xdd);  \
 } while (0)
+#else
+#define	ACL_TR_HILO_m128(P, TC, tr0, tr1, lo, hi)                        do { \
+	lo = _mm_castps_si128(_ ## P ## _shuffle_ps(_mm_castsi128_ps(tr0), _mm_castsi128_ps(tr1), 0x88));  \
+	hi = _mm_castps_si128(_ ## P ## _shuffle_ps(_mm_castsi128_ps(tr0), _mm_castsi128_ps(tr1), 0xdd));  \
+} while (0)
 
+#define	ACL_TR_HILO_256(P, TC, tr0, tr1, lo, hi)                        do { \
+	lo = _mm256_castps_si256(_ ## P ## _shuffle_ps(_mm256_castsi256_ps(tr0), _mm256_castsi256_ps(tr1), 0x88));  \
+	hi = _mm256_castps_si256(_ ## P ## _shuffle_ps(_mm256_castsi256_ps(tr0), _mm256_castsi256_ps(tr1), 0xdd));  \
+} while (0)
+#endif
 
 /*
  * Calculate the address of the next transition for
@@ -41,6 +52,7 @@ extern "C" {
  * input byte.
  * Single nodes are processed in the same ways as quad range nodes.
 */
+#ifndef _WIN64
 #define ACL_TR_CALC_ADDR(P, S,					\
 	addr, index_mask, next_input, shuffle_input,		\
 	ones_16, range_base, tr_lo, tr_hi)               do {	\
@@ -78,7 +90,83 @@ extern "C" {
 	/* calculate address for next transitions. */		\
 	addr = _##P##_add_epi32(addr, t);			\
 } while (0)
+#else
+#define ACL_TR_CALC_ADDR_m128(P, S,				\
+	addr, index_mask, next_input, shuffle_input,		\
+	ones_16, range_base, tr_lo, tr_hi)               do {	\
+								\
+	xmm_t in, node_type, r, t;				\
+	xmm_t dfa_msk, dfa_ofs, quad_ofs;			\
+								\
+	t = _##P##_xor_si##S(index_mask, index_mask);		\
+	in = _##P##_shuffle_epi8(next_input, shuffle_input);	\
+								\
+	/* Calc node type and node addr */			\
+	node_type = _##P##_andnot_si##S(index_mask, tr_lo);	\
+	addr = _##P##_and_si##S(index_mask, tr_lo);		\
+								\
+	/* mask for DFA type(0) nodes */			\
+	dfa_msk = _##P##_cmpeq_epi32(node_type, t);		\
+								\
+	/* DFA calculations. */					\
+	r = _##P##_srli_epi32(in, 30);				\
+	r = _##P##_add_epi8(r, range_base);			\
+	t = _##P##_srli_epi32(in, 24);				\
+	r = _##P##_shuffle_epi8(tr_hi, r);			\
+								\
+	dfa_ofs = _##P##_sub_epi32(t, r);			\
+								\
+	/* QUAD/SINGLE caluclations. */				\
+	t = _##P##_cmpgt_epi8(in, tr_hi);			\
+	t = _##P##_sign_epi8(t, t);				\
+	t = _##P##_maddubs_epi16(t, t);				\
+	quad_ofs = _##P##_madd_epi16(t, ones_16);		\
+								\
+	/* blend DFA and QUAD/SINGLE. */			\
+	t = _##P##_blendv_epi8(quad_ofs, dfa_ofs, dfa_msk);	\
+								\
+	/* calculate address for next transitions. */		\
+	addr = _##P##_add_epi32(addr, t);			\
+} while (0)
 
+#define ACL_TR_CALC_ADDR_m256(P, S,				\
+	addr, index_mask, next_input, shuffle_input,		\
+	ones_16, range_base, tr_lo, tr_hi)               do {	\
+								\
+	ymm_t in, node_type, r, t;				\
+	ymm_t dfa_msk, dfa_ofs, quad_ofs;			\
+								\
+	t = _##P##_xor_si##S(index_mask, index_mask);		\
+	in = _##P##_shuffle_epi8(next_input, shuffle_input);	\
+								\
+	/* Calc node type and node addr */			\
+	node_type = _##P##_andnot_si##S(index_mask, tr_lo);	\
+	addr = _##P##_and_si##S(index_mask, tr_lo);		\
+								\
+	/* mask for DFA type(0) nodes */			\
+	dfa_msk = _##P##_cmpeq_epi32(node_type, t);		\
+								\
+	/* DFA calculations. */					\
+	r = _##P##_srli_epi32(in, 30);				\
+	r = _##P##_add_epi8(r, range_base);			\
+	t = _##P##_srli_epi32(in, 24);				\
+	r = _##P##_shuffle_epi8(tr_hi, r);			\
+								\
+	dfa_ofs = _##P##_sub_epi32(t, r);			\
+								\
+	/* QUAD/SINGLE caluclations. */				\
+	t = _##P##_cmpgt_epi8(in, tr_hi);			\
+	t = _##P##_sign_epi8(t, t);				\
+	t = _##P##_maddubs_epi16(t, t);				\
+	quad_ofs = _##P##_madd_epi16(t, ones_16);		\
+								\
+	/* blend DFA and QUAD/SINGLE. */			\
+	t = _##P##_blendv_epi8(quad_ofs, dfa_ofs, dfa_msk);	\
+								\
+	/* calculate address for next transitions. */		\
+	addr = _##P##_add_epi32(addr, t);			\
+} while (0)
+#endif
 
 #ifdef __cplusplus
 }

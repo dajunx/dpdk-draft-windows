@@ -51,7 +51,7 @@
  * Get physical address of any mapped virtual address in the current process.
  */
 phys_addr_t
-rte_mem_virt2phy(const void *virtaddr)
+rte_mem_virt2iova(const void *virtaddr)
 {
 	/* This function is only used by rte_mempool_virt2phy() when hugepages are disabled. */
 	/* Get pointer to global configuration and calculate physical address offset */

@@ -28,6 +28,9 @@
 
 #endif
 
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_table_acl {
 	struct rte_table_stats stats;
 

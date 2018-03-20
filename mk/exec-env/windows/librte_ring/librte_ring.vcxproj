@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_lcore.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memory.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring_generic.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0746F0FF-F42C-4ABA-BDE1-F3FD65A81DB8}</ProjectGuid>

@@ -226,12 +226,8 @@ static const struct logtype logtype_strings[] = {
 	{RTE_LOGTYPE_USER8,      "user8"}
 };
 
-<<<<<<< HEAD
 #ifndef _WIN64
 /* Logging should be first initialzer (before drivers and bus) */
-=======
-/* Logging should be first initializer (before drivers and bus) */
->>>>>>> 8bc5baf69cc21199dd26946de1b83dcd264c259e
 RTE_INIT_PRIO(rte_log_init, 101);
 static
 #endif

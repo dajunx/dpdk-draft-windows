@@ -28,10 +28,14 @@ extern "C" {
 #include "rte_eventdev.h"
 
 /* Logging Macros */
+#ifdef _WIN64
+#define RTE_EDEV_LOG_ERR(f, ...)	RTE_LOG(ERR, EVENTDEV, "%s() line %u: " f "\n", __func__, __LINE__, __VA_ARGS__)
+#else
 #define RTE_EDEV_LOG_ERR(...) \
 	RTE_LOG(ERR, EVENTDEV, \
 		RTE_FMT("%s() line %u: " RTE_FMT_HEAD(__VA_ARGS__,) "\n", \
 			__func__, __LINE__, RTE_FMT_TAIL(__VA_ARGS__,)))
+#endif
 
 #ifdef RTE_LIBRTE_EVENTDEV_DEBUG
 #define RTE_EDEV_LOG_DEBUG(...) \

@@ -76,11 +76,6 @@ struct rte_mempool_debug_stats {
 } __rte_cache_aligned;
 #endif
 
-#ifdef _WIN64
-#undef typeof
-#define typeof(x) uintptr_t
-#endif
-
 /**
  * A structure that stores a per-core object cache.
  */

@@ -62,11 +62,5 @@
     <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_sse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_neon.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_altivec.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

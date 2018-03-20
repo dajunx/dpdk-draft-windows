@@ -40,6 +40,7 @@ rte_mtr_ops_get(uint16_t port_id, struct rte_mtr_error *error)
 	return ops;
 }
 
+#ifndef _WIN64
 #define RTE_MTR_FUNC(port_id, func)			\
 ({							\
 	const struct rte_mtr_ops *ops =			\
@@ -56,6 +57,9 @@ rte_mtr_ops_get(uint16_t port_id, struct rte_mtr_error *error)
 							\
 	ops->func;					\
 })
+#else
+#define RTE_MTR_FUNC(port_id, func)	((rte_mtr_ops_get(port_id, error)->func))
+#endif
 
 /* MTR capabilities get */
 int __rte_experimental

@@ -38,23 +38,17 @@
 #error
 #endif
 
-/* rte_common.h needs typeof to be defined */
-
-#define typeof(x)	(uintptr_t)
-
 #ifdef DPDKWIN_NO_WARNINGS
 #pragma warning (disable : 42)
 #endif
 
-#include "rte_wincompat.h"
+#include <rte_wincompat.h>
 
 #include "../common/include/rte_common.h"
 
 #ifdef DPDKWIN_NO_WARNINGS
 #pragma warning (enable : 42)
 #endif
-
-#undef typeof  // since we'll need to redefine it for other use cases
 
 #ifdef container_of
 /* undefine the existing definition, so that we can use the Windows-compliant version */
@@ -66,7 +60,7 @@
 
 /* Override RTE_MIN() / RTE_MAX() as defined, since the one in rte_common uses typeof....TODO: Diagnose this later */
 #undef RTE_MIN
-#define RTE_MIN(a, b)	min(a, b)
+#define RTE_MIN(a, b)	(((a) < (b)) ? (a) : (b))
 
 #undef RTE_MAX
 #define RTE_MAX(a, b)	max(a, b)

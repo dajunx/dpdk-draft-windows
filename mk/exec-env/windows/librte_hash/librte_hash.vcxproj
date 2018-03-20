@@ -21,10 +21,13 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_byteorder.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_rtm.h" />
     <ClInclude Include="..\..\..\..\lib\librte_hash\rte_cmp_x86.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_cuckoo_hash.h" />
     <ClInclude Include="..\..\..\..\lib\librte_hash\rte_cuckoo_hash_x86.h" />
     <ClInclude Include="..\..\..\..\lib\librte_hash\rte_fbk_hash.h" />
     <ClInclude Include="..\..\..\..\lib\librte_hash\rte_hash.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_hash_crc.h" />
     <ClInclude Include="..\..\..\..\lib\librte_hash\rte_jhash.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_hash\rte_thash.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{32FDBB89-3F26-45BB-972A-BED470AD166B}</ProjectGuid>

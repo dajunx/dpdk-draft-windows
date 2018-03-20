@@ -452,6 +452,9 @@ rte_hash_crc_set_alg(uint8_t alg)
 }
 
 /* Setting the best available algorithm */
+#ifdef _WIN64
+inline
+#endif
 RTE_INIT(rte_hash_crc_init_alg)
 {
 	rte_hash_crc_set_alg(CRC32_SSE42_x64);

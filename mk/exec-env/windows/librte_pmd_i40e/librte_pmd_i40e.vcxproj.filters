@@ -63,6 +63,12 @@
     <ClCompile Include="..\..\..\..\drivers\net\i40e\base\i40e_dcb.c">
       <Filter>Source Files\base</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_sse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_avx2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.h">
@@ -180,6 +186,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\drivers\net\i40e\base\virtchnl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

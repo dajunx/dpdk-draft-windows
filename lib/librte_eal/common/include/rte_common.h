@@ -89,9 +89,14 @@ typedef uint16_t unaligned_uint16_t;
  * @param func
  *   Constructor function.
  */
+#ifndef _WIN64
 #define RTE_INIT(func) \
 static void __attribute__((constructor, used)) func(void)
-
+#else
+/* Re-define this without the __attribute__ and static declarator */
+#define RTE_INIT(func) \
+void func(void)
+#endif
 /**
  * Run function before main() with high priority.
  *
@@ -101,8 +106,13 @@ static void __attribute__((constructor, used)) func(void)
  *   Priority number must be above 100.
  *   Lowest number is the first to run.
  */
+#ifndef _WIN64
 #define RTE_INIT_PRIO(func, prio) \
 static void __attribute__((constructor(prio), used)) func(void)
+#else
+/* Re-define this the same as RTE_INIT */
+#define RTE_INIT_PRIO(func, prio) RTE_INIT(func)
+#endif
 
 /**
  * Force a function to be inlined

@@ -347,7 +347,11 @@ rte_pipeline_table_create(struct rte_pipeline *p,
 	/* Allocate space for the default table entry */
 	entry_size = sizeof(struct rte_pipeline_table_entry) +
 		params->action_data_size;
+#ifndef _WIN64
 	default_entry = rte_zmalloc_socket(
+#else
+	default_entry = (struct rte_pipeline_table_entry *) rte_zmalloc_socket(
+#endif
 		"PIPELINE", entry_size, RTE_CACHE_LINE_SIZE, p->socket_id);
 	if (default_entry == NULL) {
 		RTE_LOG(ERR, PIPELINE,

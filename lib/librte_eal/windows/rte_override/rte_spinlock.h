@@ -121,7 +121,10 @@ static inline int rte_spinlock_is_locked(rte_spinlock_t *sl)
 * @return
 *   1 if the hardware transactional memory is supported; 0 otherwise.
 */
-static inline int rte_tm_supported(void);
+static inline int rte_tm_supported(void)
+{
+	return 0;
+}
 
 /**
 * Try to execute critical section in a hardware memory transaction,

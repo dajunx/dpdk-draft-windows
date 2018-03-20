@@ -92,6 +92,7 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_devargs.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_errno.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_hexdump.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_hypervisor.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_launch.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_lcore.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_log.c" />
@@ -102,10 +103,11 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_tailqs.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_thread.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_timer.c" />
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_vdev.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_elem.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_heap.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_keepalive.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_malloc.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_reciprocal.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_alarm.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_debug.c" />
@@ -116,10 +118,13 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_memory.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_thread.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_timer.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\fork.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\getopt.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\lrand48.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\mman.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\setenv.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\srand48.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\termios.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\unistd.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\_rand48.c" />
   </ItemGroup>

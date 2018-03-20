@@ -56,10 +56,6 @@
 #define EDQUOT 0xFE
 #endif
 
-/* C++ only */
-#ifdef __cplusplus
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -162,10 +158,30 @@ static __forceinline int __builtin_clzll(unsigned long long x)
 
 static __forceinline uint32_t __builtin_bswap32(uint32_t val)
 {
-	return  ((val & 0x000000ff) << 24) |
-		((val & 0x0000ff00) << 8) |
-		((val & 0x00ff0000) >> 8) |
-		((val & 0xff000000) >> 24);
+	return (uint32_t)_byteswap_ulong((unsigned long)val);
+}
+
+static __forceinline uint64_t __builtin_bswap64(uint64_t val)
+{
+	return (uint64_t) _byteswap_uint64((unsigned long long)val);
+}
+
+typedef int useconds_t;
+static void usleep(useconds_t us)
+{
+	LARGE_INTEGER cntr, start, current; 
+	useconds_t curr_time; 
+
+	QueryPerformanceFrequency(&cntr);
+	QueryPerformanceCounter(&start); 
+
+	do {
+		QueryPerformanceCounter(&current);
+
+		// Compute current time. 
+		curr_time = ((current.QuadPart - start.QuadPart) / (float)cntr.QuadPart * 1000 * 1000); 
+	} while (curr_time < us);
+
 }
 
 static inline int getuid (void)
@@ -200,6 +216,7 @@ static inline char* strtok_r(char *str, const char *delim, char **nextp)
 
 #define pipe(i)         _pipe(i, 8192, _O_BINARY)
 
+#define siglongjmp(a, err)  /* NO-OP */
 
 #define strncasecmp(s1,s2,count)        _strnicmp(s1,s2,count)
 
@@ -209,6 +226,7 @@ static inline char* strtok_r(char *str, const char *delim, char **nextp)
 #define strerror(errnum)                WinSafeStrError(errnum)
 #define strsep(str,sep)                 WinStrSep(str,sep)
 #define strdup(str)                     _strdup(str)
+#define strcat(dest,src)                strcat_s(dest,sizeof(dest),src)
 
 
 static inline char* WinSafeStrError(int errnum)
@@ -251,7 +269,7 @@ static inline char* WinStrSep(char** ppString, char* pSeparator)
 #define pthread_self()                                          ((pthread_t)GetCurrentThreadId())
 #define pthread_setaffinity_np(thread,size,cpuset)              WinSetThreadAffinityMask(thread, cpuset)
 #define pthread_getaffinity_np(thread,size,cpuset)              WinGetThreadAffinityMask(thread, cpuset)
-#define pthread_create(threadID, threadattr, threadfunc, args)  WinCreateThreadOverride(threadID, threadattr, threadfunc, args);
+#define pthread_create(threadID, threadattr, threadfunc, args)  WinCreateThreadOverride(threadID, threadattr, threadfunc, args)
 
 static inline int WinSetThreadAffinityMask(void* threadID, unsigned long *cpuset)
 {
@@ -272,12 +290,40 @@ static inline int WinCreateThreadOverride(void* threadID, void* threadattr, void
 {
 	HANDLE hThread;
 	hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, args, 0, (LPDWORD)threadID);
+	if (hThread)
+	{
+		SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
+		SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
+	}
 	return ((hThread != NULL) ? 0: E_FAIL);
 }
 
 /* Winsock IP protocol Numbers (not available on Windows) */
 #define IPPROTO_NONE	59       /* No next header for IPv6 */
 #define IPPROTO_SCTP	132      /* Stream Control Transmission Protocol */
+
+/* signal definitions - defined in signal.h */
+#define SIGUSR1		30
+#define SIGUSR2		31
+
+typedef int pid_t;
+
+/* Definitions for access() */
+#define F_OK	0	/* Check for existence */
+#define W_OK	2	/* Write permission */
+#define R_OK	4	/* Read permission */
+#define X_OK	8	/* DO NOT USE */
+
+#ifndef AF_INET6
+#define AF_INET6	28
+#endif
+
+/* stdlib extensions that aren't defined in windows */
+int setenv(const char *name, const char *value, int overwrite);
+pid_t fork(void);
+
+//#include <rte_gcc_builtins.h>
+
 
 #ifdef __cplusplus
 }

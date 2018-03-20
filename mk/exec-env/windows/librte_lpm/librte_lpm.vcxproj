@@ -26,8 +26,6 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_vect.h" />
     <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm.h" />
     <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm6.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_altivec.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_neon.h" />
     <ClInclude Include="..\..\..\..\lib\librte_lpm\rte_lpm_sse.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

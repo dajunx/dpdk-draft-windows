@@ -55,6 +55,10 @@ extern const char **rte_cyptodev_names;
 
 /* Logging Macros */
 
+#ifdef _WIN64
+#define CDEV_LOG_ERR(f, ...)	RTE_LOG(ERR, CRYPTODEV, "%s() line %u: " f "\n", __func__, __LINE__, __VA_ARGS__)
+#define CDEV_LOG_INFO(f, ...)	RTE_LOG(INFO, CRYPTODEV, f, __VA_ARGS__)
+#else
 #define CDEV_LOG_ERR(...) \
 	RTE_LOG(ERR, CRYPTODEV, \
 		RTE_FMT("%s() line %u: " RTE_FMT_HEAD(__VA_ARGS__,) "\n", \
@@ -64,6 +68,7 @@ extern const char **rte_cyptodev_names;
 	RTE_LOG(INFO, CRYPTODEV, \
 		RTE_FMT(RTE_FMT_HEAD(__VA_ARGS__,) "\n", \
 			RTE_FMT_TAIL(__VA_ARGS__,)))
+#endif
 
 #ifdef RTE_LIBRTE_CRYPTODEV_DEBUG
 #define CDEV_LOG_DEBUG(...) \

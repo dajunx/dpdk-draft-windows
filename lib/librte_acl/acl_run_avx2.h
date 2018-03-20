@@ -66,9 +66,15 @@ transition8(ymm_t next_input, const uint64_t *trans, ymm_t *tr_lo, ymm_t *tr_hi)
 	tr = (const int32_t *)(uintptr_t)trans;
 
 	/* Calculate the address (array index) for all 8 transitions. */
+#ifndef _WIN64
 	ACL_TR_CALC_ADDR(mm256, 256, addr, ymm_index_mask.y, next_input,
 		ymm_shuffle_input.y, ymm_ones_16.y, ymm_range_base.y,
 		*tr_lo, *tr_hi);
+#else
+	ACL_TR_CALC_ADDR_m256(mm256, 256, addr, ymm_index_mask.y, next_input,
+		ymm_shuffle_input.y, ymm_ones_16.y, ymm_range_base.y,
+		*tr_lo, *tr_hi);
+#endif
 
 	/* load lower 32 bits of 8 transactions at once. */
 	*tr_lo = _mm256_i32gather_epi32(tr, addr, sizeof(trans[0]));
@@ -123,7 +129,11 @@ acl_process_matches_avx2x8(const struct rte_acl_ctx *ctx,
 	t1 = _mm256_set_epi64x(tr[7], tr[6], tr[3], tr[2]);
 
 	/* For each transition: put low 32 into tr_lo and high 32 into tr_hi */
+#ifndef _WIN64
 	ACL_TR_HILO(mm256, __m256, t0, t1, lo, hi);
+#else
+	ACL_TR_HILO_256(mm256, __m256, t0, t1, lo, hi);
+#endif
 
 	/* Keep transitions wth NOMATCH intact. */
 	*tr_lo = _mm256_blendv_epi8(*tr_lo, lo, matches);
@@ -181,15 +191,22 @@ search_avx2x16(const struct rte_acl_ctx *ctx, const uint8_t **data,
 	t1 = _mm256_set_epi64x(index_array[7], index_array[6],
 		index_array[3], index_array[2]);
 
+#ifndef _WIN64
 	ACL_TR_HILO(mm256, __m256, t0, t1, tr_lo[0], tr_hi[0]);
+#else
+	ACL_TR_HILO_256(mm256, __m256, t0, t1, tr_lo[0], tr_hi[0]);
+#endif
 
 	t0 = _mm256_set_epi64x(index_array[13], index_array[12],
 		index_array[9], index_array[8]);
 	t1 = _mm256_set_epi64x(index_array[15], index_array[14],
 		index_array[11], index_array[10]);
 
+#ifndef _WIN64
 	ACL_TR_HILO(mm256, __m256, t0, t1, tr_lo[1], tr_hi[1]);
-
+#else
+	ACL_TR_HILO_256(mm256, __m256, t0, t1, tr_lo[1], tr_hi[1]);
+#endif
 	 /* Check for any matches. */
 	acl_match_check_avx2x8(ctx, parms, &flows, 0, &tr_lo[0], &tr_hi[0],
 		ymm_match_mask.y);

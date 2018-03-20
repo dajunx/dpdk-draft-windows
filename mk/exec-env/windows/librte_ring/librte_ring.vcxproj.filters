@@ -50,5 +50,8 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_lcore.h">
       <Filter>Header Files\windows override</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring_generic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

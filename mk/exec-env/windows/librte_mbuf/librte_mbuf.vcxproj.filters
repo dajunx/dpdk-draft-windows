@@ -24,6 +24,9 @@
     <ClCompile Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_ptype.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_pool_ops.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.h">
@@ -87,6 +90,9 @@
       <Filter>Header Files\windows override</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_ptype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_pool_ops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,7 +1,7 @@
 ;
 ;   BSD LICENSE
 ;
-;   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
+;   Copyright(c) 2010-2018 Intel Corporation. All rights reserved.
 ;   All rights reserved.
 ;
 ;   Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,10 @@ DriverVer=
 
 [Standard.NT$ARCH$]
 %F1583.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_1583
+%F158A.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_158A   ; I40E_DEV_ID_25G_B
+%F158B.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_158B   ; I40E_DEV_ID_25G_SFP28
 %F37D0.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_37D0
+%F153B.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_153B
 
 [netuio_Device.NT]
 CopyFiles=Drivers_Dir
@@ -107,6 +110,9 @@ ManufacturerName="Intel"
 ClassName = "Intel(R) DPDK netUIO Driver"
 DiskName = "DPDK netUIO Installation Disk"
 F1583.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Converged Network Adapter XL710-Q2"
+F158A.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Network Adapter XXV710 for 25GbE backplane"
+F158B.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Network Adapter XXV710-DA1"
 F37D0.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Connection X722"
+F153B.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Connection I217-V"
 netuio.DeviceDesc = "netuio Device"
 netuio.SVCDESC = "netuio Service"

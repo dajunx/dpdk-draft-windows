@@ -18,11 +18,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-#ifdef _WIN64
-#undef typeof
-#define typeof(x) unsigned
-#include <rte_common.h>
-#endif
 #include <rte_eal.h>
 #include <rte_log.h>
 #include <rte_lcore.h>

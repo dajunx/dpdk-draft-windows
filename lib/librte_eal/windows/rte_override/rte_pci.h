@@ -33,10 +33,5 @@
 
 #pragma once
 
-#undef typeof
-
-#define typeof(x) uint8_t
-
 #include "..\..\..\librte_pci\rte_pci.h"
 
-#undef typeof

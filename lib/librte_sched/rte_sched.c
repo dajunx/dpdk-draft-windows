@@ -135,6 +135,7 @@ enum grinder_state {
  * each packet, typically written by the classification stage and read
  * by scheduler enqueue.
  */
+#ifndef _WIN64
 struct rte_sched_port_hierarchy {
 	uint16_t queue:2;                /**< Queue ID (0 .. 3) */
 	uint16_t traffic_class:2;        /**< Traffic class ID (0 .. 3)*/
@@ -143,6 +144,16 @@ struct rte_sched_port_hierarchy {
 	uint16_t subport;                /**< Subport ID */
 	uint32_t pipe;		         /**< Pipe ID */
 };
+#else
+struct rte_sched_port_hierarchy {
+	uint8_t queue : 2;               /**< Queue ID (0 .. 3) */
+	uint8_t traffic_class : 2;       /**< Traffic class ID (0 .. 3)*/
+	uint8_t color : 2;               /**< Color */
+	uint8_t unused;
+	uint16_t subport;                /**< Subport ID */
+	uint32_t pipe;		         /**< Pipe ID */
+};
+#endif
 
 struct rte_sched_grinder {
 	/* Pipe cache */

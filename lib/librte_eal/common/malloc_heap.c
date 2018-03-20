@@ -15,11 +15,6 @@
 #include <rte_launch.h>
 #include <rte_per_lcore.h>
 #include <rte_lcore.h>
-
-#ifdef _WIN64
-#undef typeof
-#define typeof(x) uintptr_t
-#endif
 #include <rte_common.h>
 #include <rte_string_fns.h>
 #include <rte_spinlock.h>

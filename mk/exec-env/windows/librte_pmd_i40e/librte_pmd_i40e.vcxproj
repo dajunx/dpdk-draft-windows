@@ -23,6 +23,8 @@
     <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_flow.c" />
     <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_pf.c" />
     <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.c" />
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_avx2.c" />
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_sse.c" />
     <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_tm.c" />
     <ClCompile Include="..\..\..\..\drivers\net\i40e\rte_pmd_i40e.c" />
   </ItemGroup>
@@ -46,6 +48,7 @@
     <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_pf.h" />
     <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_regs.h" />
     <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.h" />
+    <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_common.h" />
     <ClInclude Include="..\..\..\..\drivers\net\i40e\rte_pmd_i40e.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\generic\rte_byteorder.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\generic\rte_cycles.h" />

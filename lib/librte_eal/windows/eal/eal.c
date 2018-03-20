@@ -111,7 +111,6 @@ extern void pciinitfn_net_i40e(void);
 /* these are more constructor-like function, that we'll need to call at the start */
 extern void rte_timer_init(void);
 extern void rte_log_init(void);
-extern void rte_log_init(void);
 extern void i40e_init_log(void);
 
 /* Return a pointer to the configuration structure */
@@ -123,9 +122,9 @@ rte_eal_get_configuration(void)
 
 /* Return mbuf pool ops name */
 const char *
-rte_eal_mbuf_default_mempool_ops(void)
+rte_eal_mbuf_user_pool_ops(void)
 {
-	return internal_config.mbuf_pool_ops_name;
+	return internal_config.user_mbuf_pool_ops_name;
 }
 
 enum rte_iova_mode
@@ -504,6 +503,9 @@ rte_eal_init(int argc, char **argv)
 	static rte_atomic32_t run_once = RTE_ATOMIC32_INIT(0);
 	char cpuset[RTE_CPU_AFFINITY_STR_LEN];
 
+//	/* constructor replacement */
+//	extern void eal_common_timer_init(void);
+
 	/* Register and initialize all the buses we'll be using */
 	/* This has to be done at the very start! */
 	eal_register_and_init_buses();
@@ -520,7 +522,7 @@ rte_eal_init(int argc, char **argv)
 	/* We need to do this before any other eal init calls */
 	eal_register_and_init_pmd();
 
-	rte_timer_init(); /* Use the built-in timer delay function */
+	rte_timer_init(); /* Initialize timer function */
 
 	if (!rte_atomic32_test_and_set(&run_once))
 		return -1;

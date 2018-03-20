@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_pool_ops.c" />
     <ClCompile Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_ptype.c" />
   </ItemGroup>
   <ItemGroup>
@@ -33,6 +34,7 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_per_lcore.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_prefetch.h" />
     <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_pool_ops.h" />
     <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf_ptype.h" />
     <ClInclude Include="..\..\..\..\lib\librte_mempool\rte_mempool.h" />
     <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring.h" />

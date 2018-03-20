@@ -43,3 +43,8 @@ int getpagesize(void)
     return si.dwPageSize;
 }
 
+int getdtablesize(void)
+{
+	// Return OPEN_MAX (256)
+	return 256;
+}

@@ -2864,7 +2864,7 @@ i40e_flush_queue_region_all_conf(struct rte_eth_dev *dev,
 			PMD_DRV_LOG(INFO, "Failed to flush dcb.");
 			pf->flags &= ~I40E_FLAG_DCB;
 		}
-#endif 
+#endif
 		i40e_init_queue_region_conf(dev);
 	}
 	return 0;

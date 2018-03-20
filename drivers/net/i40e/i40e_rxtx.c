@@ -23,6 +23,9 @@
 #include <rte_udp.h>
 #include <rte_ip.h>
 #include <rte_net.h>
+#ifdef _WIN64
+#include <rte_cpuflags.h>
+#endif
 
 #include "i40e_logs.h"
 #include "base/i40e_prototype.h"
@@ -3020,6 +3023,7 @@ i40e_set_default_pctype_table(struct rte_eth_dev *dev)
 	}
 }
 
+#ifndef _WIN64
 /* Stubs needed for linkage when CONFIG_RTE_I40E_INC_VECTOR is set to 'n' */
 int __attribute__((weak))
 i40e_rx_vec_dev_conf_condition_check(struct rte_eth_dev __rte_unused *dev)
@@ -3094,3 +3098,4 @@ i40e_xmit_pkts_vec_avx2(void __rte_unused * tx_queue,
 {
 	return 0;
 }
+#endif

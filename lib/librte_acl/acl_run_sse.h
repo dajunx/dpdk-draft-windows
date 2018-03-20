@@ -128,18 +128,28 @@ acl_match_check_x4(int slot, const struct rte_acl_ctx *ctx, struct parms *parms,
 	xmm_t temp;
 
 	/* put low 32 bits of each transition into one register */
+#ifndef _WIN64
 	temp = (xmm_t)_mm_shuffle_ps((__m128)*indices1, (__m128)*indices2,
 		0x88);
-	/* test for match node */
+#else
+	temp = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(*indices1),
+						_mm_castsi128_ps(*indices2), 0x88));
+#endif
+		/* test for match node */
 	temp = _mm_and_si128(match_mask, temp);
 
 	while (!_mm_testz_si128(temp, temp)) {
 		acl_process_matches(indices1, slot, ctx, parms, flows);
 		acl_process_matches(indices2, slot + 2, ctx, parms, flows);
 
+#ifndef _WIN64
 		temp = (xmm_t)_mm_shuffle_ps((__m128)*indices1,
 					(__m128)*indices2,
 					0x88);
+#else
+		temp = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(*indices1),
+							_mm_castsi128_ps(*indices2), 0x88));
+#endif
 		temp = _mm_and_si128(match_mask, temp);
 	}
 }
@@ -154,6 +164,7 @@ transition4(xmm_t next_input, const uint64_t *trans,
 	xmm_t addr, tr_lo, tr_hi;
 	uint64_t trans0, trans2;
 
+#ifndef _WIN64
 	/* Shuffle low 32 into tr_lo and high 32 into tr_hi */
 	ACL_TR_HILO(mm, __m128, *indices1, *indices2, tr_lo, tr_hi);
 
@@ -161,7 +172,15 @@ transition4(xmm_t next_input, const uint64_t *trans,
 	ACL_TR_CALC_ADDR(mm, 128, addr, xmm_index_mask.x, next_input,
 		xmm_shuffle_input.x, xmm_ones_16.x, xmm_range_base.x,
 		tr_lo, tr_hi);
+#else
+	/* Shuffle low 32 into tr_lo and high 32 into tr_hi */
+	ACL_TR_HILO_m128(mm, __m128, *indices1, *indices2, tr_lo, tr_hi);
 
+	 /* Calculate the address (array index) for all 4 transitions. */
+	ACL_TR_CALC_ADDR_m128(mm, 128, addr, xmm_index_mask.x, next_input,
+		xmm_shuffle_input.x, xmm_ones_16.x, xmm_range_base.x,
+		tr_lo, tr_hi);
+#endif
 	 /* Gather 64 bit transitions and pack back into 2 registers. */
 
 	trans0 = trans[_mm_cvtsi128_si32(addr)];

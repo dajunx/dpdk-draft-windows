@@ -523,6 +523,9 @@ struct rte_eth_rxtx_callback {
  * memory. This split allows the function pointer and driver data to be per-
  * process, while the actual configuration data for the device is shared.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_eth_dev {
 	eth_rx_burst_t rx_pkt_burst; /**< Pointer to PMD receive function. */
 	eth_tx_burst_t tx_pkt_burst; /**< Pointer to PMD transmit function. */
@@ -557,6 +560,9 @@ struct rte_eth_dev_owner;
  * This structure is safe to place in shared memory to be common among different
  * processes in a multi-process configuration.
  */
+#ifdef _WIN64
+RTE_CACHE_ALIGN
+#endif
 struct rte_eth_dev_data {
 	char name[RTE_ETH_NAME_MAX_LEN]; /**< Unique identifier name */
 

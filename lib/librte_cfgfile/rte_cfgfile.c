@@ -167,7 +167,14 @@ rte_cfgfile_load_with_params(const char *filename, int flags,
 	if (rte_cfgfile_check_params(params))
 		return NULL;
 
+#ifndef _WIN64
 	FILE *f = fopen(filename, "r");
+#else
+	FILE *f;
+	errno_t err = fopen_s(&f, filename, "r");
+	if (err != 0)
+		return NULL;
+#endif
 	if (f == NULL)
 		return NULL;
 
@@ -408,8 +415,14 @@ int rte_cfgfile_save(struct rte_cfgfile *cfg, const char *filename)
 	if ((cfg == NULL) || (filename == NULL))
 		return -EINVAL;
 
+#ifndef _WIN64
 	FILE *f = fopen(filename, "w");
-
+#else
+	FILE *f;
+	errno_t err = fopen_s(&f, filename, "w");
+	if (err != 0)
+		return -EINVAL;
+#endif
 	if (f == NULL)
 		return -EINVAL;
 
