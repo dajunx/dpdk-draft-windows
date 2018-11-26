@@ -1,0 +1,118 @@
+;
+;   BSD LICENSE
+;
+;   Copyright(c) 2010-2018 Intel Corporation. All rights reserved.
+;   All rights reserved.
+;
+;   Redistribution and use in source and binary forms, with or without
+;   modification, are permitted provided that the following conditions
+;   are met:
+;
+;     * Redistributions of source code must retain the above copyright
+;       notice, this list of conditions and the following disclaimer.
+;     * Redistributions in binary form must reproduce the above copyright
+;       notice, this list of conditions and the following disclaimer in
+;       the documentation and/or other materials provided with the
+;       distribution.
+;     * Neither the name of Intel Corporation nor the names of its
+;       contributors may be used to endorse or promote products derived
+;       from this software without specific prior written permission.
+;
+;   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+;   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+;   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+;   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+;   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+;   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+;   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+;   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+;   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+;   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+;   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+;
+;
+; netuio.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Net
+ClassGuid={4d36e972-e325-11ce-bfc1-08002be10318}
+Provider=%ManufacturerName%
+CatalogFile=netuio.cat
+DriverVer=
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%F1583.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_1583
+%F158A.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_158A   ; I40E_DEV_ID_25G_B
+%F158B.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_158B   ; I40E_DEV_ID_25G_SFP28
+%F37D0.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_37D0
+%F153B.netuio.Description%=netuio_Device, PCI\VEN_8086&DEV_153B
+
+[netuio_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+netuio.sys
+
+;-------------- Service installation
+[netuio_Device.NT.Services]
+AddService = netuio,%SPSVCINST_ASSOCSERVICE%, netuio_Service_Inst
+
+; -------------- netuio driver install sections
+[netuio_Service_Inst]
+DisplayName    = %netuio.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\netuio.sys
+
+;
+;--- netuio_Device Coinstaller installation ------
+;
+
+[DestinationDirs]
+DefaultDestDir = 12
+netuio_Device_CoInstaller_CopyFiles = 11
+
+[netuio_Device.NT.CoInstallers]
+AddReg=netuio_Device_CoInstaller_AddReg
+CopyFiles=netuio_Device_CoInstaller_CopyFiles
+
+[netuio_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[netuio_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+netuio.sys  = 1,,
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+[netuio_Device.NT.Wdf]
+KmdfService =  netuio, netuio_wdfsect
+[netuio_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="Intel"
+ClassName = "Intel(R) DPDK netUIO Driver"
+DiskName = "DPDK netUIO Installation Disk"
+F1583.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Converged Network Adapter XL710-Q2"
+F158A.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Network Adapter XXV710 for 25GbE backplane"
+F158B.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Network Adapter XXV710-DA1"
+F37D0.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Connection X722"
+F153B.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Connection I217-V"
+netuio.DeviceDesc = "netuio Device"
+netuio.SVCDESC = "netuio Service"
