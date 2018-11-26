@@ -1,0 +1,153 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\lrand48.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\srand48.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\_rand48.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ethdev\ethdev_profile.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ethdev\rte_ethdev.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ethdev\rte_flow.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ethdev\rte_mtr.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_ethdev\rte_tm.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\arch\x86\rte_byteorder.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_branch_prediction.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_common.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_debug.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_eal.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_errno.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_interrupts.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_launch.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_lcore.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_log.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_malloc.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_memory.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_memzone.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_pci.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_per_lcore.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_random.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_string_fns.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\include_override\rand48.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_atomic.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_byteorder.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_common.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_debug.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_lcore.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memcpy.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memory.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_pci.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_per_lcore.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_spinlock.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\ethdev_profile.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_dev_info.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_ethdev.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_ethdev_core.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_ethdev_driver.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_ethdev_pci.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_ether.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_eth_ctrl.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_flow.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_flow_driver.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_mtr.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_mtr_driver.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_tm.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ethdev\rte_tm_driver.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_mempool\rte_mempool.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7E0025BB-72B3-4906-B0DE-4B45A1E22B0A}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>librte_ethdev</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <ProjectName>librte_ethdev</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>Intel C++ Compiler 18.0</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>Intel C++ Compiler 18.0</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="..\DpdkRteLib.props" />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="..\DpdkRteLib.props" />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(RTE_SDK)\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <IntDir>$(RTE_SDK)\mk\exec-env\windows\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(RTE_SDK)\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <IntDir>$(RTE_SDK)\mk\exec-env\windows\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>C:\winddk\MSVS2015_SDK_WDK_Windows10_14393\Program Files\Microsoft Visual Studio 14.0\VC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <UndefinePreprocessorDefinitions>__ICL</UndefinePreprocessorDefinitions>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <CCppSupport>C99Support</CCppSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>C:\winddk\MSVS2015_SDK_WDK_Windows10_14393\Program Files\Microsoft Visual Studio 14.0\VC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <CCppSupport>C99Support</CCppSupport>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

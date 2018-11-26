@@ -14,6 +14,7 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\unistd.c" />
     <ClCompile Include="..\..\..\..\lib\librte_mempool\rte_mempool.c" />
     <ClCompile Include="..\..\..\..\lib\librte_mempool\rte_mempool_ops.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_mempool\rte_mempool_ops_default.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_branch_prediction.h" />
@@ -32,7 +33,7 @@
     <ProjectGuid>{EEDD0F26-9B2E-460E-9D8F-C3F3C0B999B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librte_mempool</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

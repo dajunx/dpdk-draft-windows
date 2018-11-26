@@ -1,35 +1,7 @@
-/*-
-*   BSD LICENSE
-*
-*   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
-*   All rights reserved.
-*
-*   Redistribution and use in source and binary forms, with or without
-*   modification, are permitted provided that the following conditions
-*   are met:
-*
-*     * Redistributions of source code must retain the above copyright
-*       notice, this list of conditions and the following disclaimer.
-*     * Redistributions in binary form must reproduce the above copyright
-*       notice, this list of conditions and the following disclaimer in
-*       the documentation and/or other materials provided with the
-*       distribution.
-*     * Neither the name of Intel Corporation nor the names of its
-*       contributors may be used to endorse or promote products derived
-*       from this software without specific prior written permission.
-*
-*   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-*   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-*   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-*   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-*   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-*   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-*   OF THIS SOFTWARE, EVEN I ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+﻿/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2017-2018 Intel Corporation
 */
+
 
 #ifndef _RTE_WINCOMPAT_H_
 #define _RTE_WINCOMPAT_H_
@@ -46,7 +18,6 @@
 
 /* limits.h replacement */
 #include <stdlib.h>
-
 #ifndef PATH_MAX
 #define PATH_MAX _MAX_PATH
 #endif
@@ -223,10 +194,12 @@ static inline char* strtok_r(char *str, const char *delim, char **nextp)
 // Replacement with safe string functions
 #define strcpy(dest,src)                strcpy_s(dest,sizeof(dest),src)
 #define strncpy(dest,src,count)         strncpy_s(dest,sizeof(dest),src,count)
+#define strlcpy(dest,src,count)			strncpy_s(dest,sizeof(dest),src,count)
 #define strerror(errnum)                WinSafeStrError(errnum)
 #define strsep(str,sep)                 WinStrSep(str,sep)
 #define strdup(str)                     _strdup(str)
 #define strcat(dest,src)                strcat_s(dest,sizeof(dest),src)
+#define sscanf(source,pattern, ...)		sscanf_s(source,pattern, __VA_ARGS__)
 
 
 static inline char* WinSafeStrError(int errnum)
@@ -258,45 +231,12 @@ static inline char* WinStrSep(char** ppString, char* pSeparator)
 }
 
 #define sleep(secs)                 Sleep((secs)*1000)   // Windows Sleep() requires milliseconds
-
+#define ftruncate(fd,len)			_chsize_s(fd,len)
 
 // CPU set function overrides
 #define CPU_ZERO(cpuset)                {*cpuset = 0;}
 #define CPU_SET(cpucore, cpuset)        { *cpuset |= (1 << cpucore); }
 #define CPU_ISSET(cpucore, cpuset)      ((*cpuset & (1 << cpucore)) ? 1 : 0)
-
-// pthread function overrides
-#define pthread_self()                                          ((pthread_t)GetCurrentThreadId())
-#define pthread_setaffinity_np(thread,size,cpuset)              WinSetThreadAffinityMask(thread, cpuset)
-#define pthread_getaffinity_np(thread,size,cpuset)              WinGetThreadAffinityMask(thread, cpuset)
-#define pthread_create(threadID, threadattr, threadfunc, args)  WinCreateThreadOverride(threadID, threadattr, threadfunc, args)
-
-static inline int WinSetThreadAffinityMask(void* threadID, unsigned long *cpuset)
-{
-	DWORD dwPrevAffinityMask = SetThreadAffinityMask(threadID, *cpuset);
-	return 0;
-}
-
-static inline int WinGetThreadAffinityMask(void* threadID, unsigned long *cpuset)
-{
-	/* Workaround for the lack of a GetThreadAffinityMask() API in Windows */
-	DWORD dwPrevAffinityMask = SetThreadAffinityMask(threadID, 0x1); /* obtain previous mask by setting dummy mask */
-	SetThreadAffinityMask(threadID, dwPrevAffinityMask); /* set it back! */
-	*cpuset = dwPrevAffinityMask;
-	return 0;
-}
-
-static inline int WinCreateThreadOverride(void* threadID, void* threadattr, void* threadfunc, void* args)
-{
-	HANDLE hThread;
-	hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, args, 0, (LPDWORD)threadID);
-	if (hThread)
-	{
-		SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-		SetThreadPriority(hThread, THREAD_PRIORITY_TIME_CRITICAL);
-	}
-	return ((hThread != NULL) ? 0: E_FAIL);
-}
 
 /* Winsock IP protocol Numbers (not available on Windows) */
 #define IPPROTO_NONE	59       /* No next header for IPv6 */
@@ -305,8 +245,6 @@ static inline int WinCreateThreadOverride(void* threadID, void* threadattr, void
 /* signal definitions - defined in signal.h */
 #define SIGUSR1		30
 #define SIGUSR2		31
-
-typedef int pid_t;
 
 /* Definitions for access() */
 #define F_OK	0	/* Check for existence */
@@ -320,7 +258,84 @@ typedef int pid_t;
 
 /* stdlib extensions that aren't defined in windows */
 int setenv(const char *name, const char *value, int overwrite);
-pid_t fork(void);
+
+// Returns a handle to an mutex object that is created only once
+static inline HANDLE OpenMutexHandleAsync(INIT_ONCE *g_InitOnce)
+{
+	PVOID  lpContext;
+	BOOL   fStatus;
+	BOOL   fPending;
+	HANDLE hMutex;
+
+	// Begin one-time initialization
+	fStatus = InitOnceBeginInitialize(g_InitOnce,       // Pointer to one-time initialization structure
+		INIT_ONCE_ASYNC,   // Asynchronous one-time initialization
+		&fPending,         // Receives initialization status
+		&lpContext);       // Receives pointer to data in g_InitOnce  
+
+						   // InitOnceBeginInitialize function failed.
+	if (!fStatus)
+	{
+		return (INVALID_HANDLE_VALUE);
+	}
+
+	// Initialization has already completed and lpContext contains mutex object.
+	if (!fPending)
+	{
+		return (HANDLE)lpContext;
+	}
+
+	// Create Mutex object for one-time initialization.
+	hMutex = CreateMutex(NULL,    // Default security descriptor
+		FALSE,    // Manual-reset mutex object
+		NULL);   // Object is unnamed
+
+				 // mutex object creation failed.
+	if (NULL == hMutex)
+	{
+		return (INVALID_HANDLE_VALUE);
+	}
+
+	// Complete one-time initialization.
+	fStatus = InitOnceComplete(g_InitOnce,             // Pointer to one-time initialization structure
+		INIT_ONCE_ASYNC,         // Asynchronous initialization
+		(PVOID)hMutex);          // Pointer to mutex object to be stored in g_InitOnce
+
+								 // InitOnceComplete function succeeded. Return mutex object.
+	if (fStatus)
+	{
+		return hMutex;
+	}
+
+	// Initialization has already completed. Free the local mutex.
+	CloseHandle(hMutex);
+
+
+	// Retrieve the final context data.
+	fStatus = InitOnceBeginInitialize(g_InitOnce,            // Pointer to one-time initialization structure
+		INIT_ONCE_CHECK_ONLY,   // Check whether initialization is complete
+		&fPending,              // Receives initialization status
+		&lpContext);            // Receives pointer to mutex object in g_InitOnce
+
+								// Initialization is complete. Return mutex.
+	if (fStatus && !fPending)
+	{
+		return (HANDLE)lpContext;
+	}
+	else
+	{
+		return INVALID_HANDLE_VALUE;
+	}
+}
+
+/*
+ * Used to statically create and lock a mutex
+*/
+static inline HANDLE WinCreateAndLockStaticMutex(HANDLE mutex, INIT_ONCE *g_InitOnce) {
+	mutex = OpenMutexHandleAsync(g_InitOnce);
+	WaitForSingleObject(mutex, INFINITE);
+	return mutex;
+}
 
 //#include <rte_gcc_builtins.h>
 

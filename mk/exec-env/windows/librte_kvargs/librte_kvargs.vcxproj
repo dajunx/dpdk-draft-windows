@@ -22,7 +22,7 @@
     <ProjectGuid>{F74A831C-CD22-4D19-BE6F-A318D0376EFA}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librte_kvargs</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

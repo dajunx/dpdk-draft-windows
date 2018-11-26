@@ -570,6 +570,49 @@ rte_pmd_i40e_set_vf_mac_addr(uint16_t port, uint16_t vf_id,
 	return 0;
 }
 
+static const struct ether_addr null_mac_addr;
+
+int
+rte_pmd_i40e_remove_vf_mac_addr(uint16_t port, uint16_t vf_id,
+	struct ether_addr *mac_addr)
+{
+	struct rte_eth_dev *dev;
+	struct i40e_pf_vf *vf;
+	struct i40e_vsi *vsi;
+	struct i40e_pf *pf;
+
+	if (i40e_validate_mac_addr((u8 *)mac_addr) != I40E_SUCCESS)
+		return -EINVAL;
+
+	RTE_ETH_VALID_PORTID_OR_ERR_RET(port, -ENODEV);
+
+	dev = &rte_eth_devices[port];
+
+	if (!is_i40e_supported(dev))
+		return -ENOTSUP;
+
+	pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
+
+	if (vf_id >= pf->vf_num || !pf->vfs)
+		return -EINVAL;
+
+	vf = &pf->vfs[vf_id];
+	vsi = vf->vsi;
+	if (!vsi) {
+		PMD_DRV_LOG(ERR, "Invalid VSI.");
+		return -EINVAL;
+	}
+
+	if (is_same_ether_addr(mac_addr, &vf->mac_addr))
+		/* Reset the mac with NULL address */
+		ether_addr_copy(&null_mac_addr, &vf->mac_addr);
+
+	/* Remove the mac */
+	i40e_vsi_delete_mac(vsi, mac_addr);
+
+	return 0;
+}
+
 /* Set vlan strip on/off for specific VF from host */
 int
 rte_pmd_i40e_set_vf_vlan_stripq(uint16_t port, uint16_t vf_id, uint8_t on)
@@ -1603,7 +1646,7 @@ rte_pmd_i40e_process_ddp_package(uint16_t port, uint8_t *buff,
 		return -EINVAL;
 	}
 
-	i40e_update_customized_info(dev, buff, size);
+	i40e_update_customized_info(dev, buff, size, op);
 
 	/* Find metadata segment */
 	metadata_seg_hdr = i40e_find_segment_in_package(SEGMENT_TYPE_METADATA,
@@ -1661,6 +1704,7 @@ rte_pmd_i40e_process_ddp_package(uint16_t port, uint8_t *buff,
 				PMD_DRV_LOG(ERR, "Profile of group 0 already exists.");
 			else if (is_exist == 3)
 				PMD_DRV_LOG(ERR, "Profile of different group already exists");
+			i40e_update_customized_info(dev, buff, size, op);
 			rte_free(profile_info_sec);
 			return -EEXIST;
 		}
@@ -3071,6 +3115,7 @@ rte_pmd_i40e_inset_set(uint16_t port, uint8_t pctype,
 {
 	struct rte_eth_dev *dev;
 	struct i40e_hw *hw;
+	struct i40e_pf *pf;
 	uint64_t inset_reg;
 	uint32_t mask_reg[2];
 	int i;
@@ -3086,10 +3131,12 @@ rte_pmd_i40e_inset_set(uint16_t port, uint8_t pctype,
 		return -EINVAL;
 
 	hw = I40E_DEV_PRIVATE_TO_HW(dev->data->dev_private);
+	pf = I40E_DEV_PRIVATE_TO_PF(dev->data->dev_private);
 
-	/* Clear mask first */
-	for (i = 0; i < 2; i++)
-		i40e_check_write_reg(hw, I40E_GLQF_FD_MSK(i, pctype), 0);
+	if (pf->support_multi_driver) {
+		PMD_DRV_LOG(ERR, "Input set configuration is not supported.");
+		return -ENOTSUP;
+	}
 
 	inset_reg = inset->inset;
 	for (i = 0; i < 2; i++)
@@ -3098,14 +3145,15 @@ rte_pmd_i40e_inset_set(uint16_t port, uint8_t pctype,
 
 	switch (inset_type) {
 	case INSET_HASH:
-		i40e_check_write_reg(hw, I40E_GLQF_HASH_INSET(0, pctype),
-				     (uint32_t)(inset_reg & UINT32_MAX));
-		i40e_check_write_reg(hw, I40E_GLQF_HASH_INSET(1, pctype),
-				     (uint32_t)((inset_reg >>
-					      I40E_32_BIT_WIDTH) & UINT32_MAX));
+		i40e_check_write_global_reg(hw, I40E_GLQF_HASH_INSET(0, pctype),
+					    (uint32_t)(inset_reg & UINT32_MAX));
+		i40e_check_write_global_reg(hw, I40E_GLQF_HASH_INSET(1, pctype),
+					    (uint32_t)((inset_reg >>
+					     I40E_32_BIT_WIDTH) & UINT32_MAX));
 		for (i = 0; i < 2; i++)
-			i40e_check_write_reg(hw, I40E_GLQF_HASH_MSK(i, pctype),
-					     mask_reg[i]);
+			i40e_check_write_global_reg(hw,
+						  I40E_GLQF_HASH_MSK(i, pctype),
+						  mask_reg[i]);
 		break;
 	case INSET_FDIR:
 		i40e_check_write_reg(hw, I40E_PRTQF_FD_INSET(pctype, 0),
@@ -3114,8 +3162,9 @@ rte_pmd_i40e_inset_set(uint16_t port, uint8_t pctype,
 				     (uint32_t)((inset_reg >>
 					      I40E_32_BIT_WIDTH) & UINT32_MAX));
 		for (i = 0; i < 2; i++)
-			i40e_check_write_reg(hw, I40E_GLQF_FD_MSK(i, pctype),
-					     mask_reg[i]);
+			i40e_check_write_global_reg(hw,
+						    I40E_GLQF_FD_MSK(i, pctype),
+						    mask_reg[i]);
 		break;
 	case INSET_FDIR_FLX:
 		i40e_check_write_reg(hw, I40E_PRTQF_FD_FLXINSET(pctype),

@@ -1,35 +1,7 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2017-2018 Intel Corporation
+*/
+
 #include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -41,6 +13,8 @@
 #include <rte_eal_memconfig.h>
 #include <rte_log.h>
 #include <rte_string_fns.h>
+#include <rte_fbarray.h>
+#include <rte_errno.h>
 #include "eal_private.h"
 #include "eal_internal_cfg.h"
 #include "eal_filesystem.h"
@@ -56,9 +30,13 @@ rte_mem_virt2iova(const void *virtaddr)
 	/* This function is only used by rte_mempool_virt2phy() when hugepages are disabled. */
 	/* Get pointer to global configuration and calculate physical address offset */
 	phys_addr_t physaddr;
+	struct rte_memseg *ms;
 	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
 	if (mcfg) {
-		physaddr = (phys_addr_t)((uintptr_t)mcfg->memseg[0].phys_addr + RTE_PTR_DIFF(virtaddr, mcfg->memseg[0].addr));
+		ms = rte_fbarray_get(&mcfg->memsegs[0].memseg_arr, 0);
+		if(ms == NULL)
+			return RTE_BAD_PHYS_ADDR;
+		physaddr = (phys_addr_t)((uintptr_t)ms->phys_addr + RTE_PTR_DIFF(virtaddr, mcfg->memsegs[0].base_va));
 		return physaddr;
 	}
 	else
@@ -83,4 +61,81 @@ rte_eal_hugepage_attach(void)
 	 * It has not been implemented on Windows
 	 */
 	return 0;
+}
+
+static int
+alloc_va_space(struct rte_memseg_list *msl)
+{
+	uint64_t page_sz;
+	size_t mem_sz;
+	void *addr;
+	int flags = 0;
+
+#ifdef RTE_ARCH_PPC_64
+	flags |= MAP_HUGETLB;
+#endif
+
+	page_sz = msl->page_sz;
+	mem_sz = page_sz * msl->memseg_arr.len;
+
+	addr = eal_get_virtual_area(msl->base_va, &mem_sz, page_sz, 0, flags);
+	if (addr == NULL) {
+		if (rte_errno == EADDRNOTAVAIL)
+			RTE_LOG(ERR, EAL, "Could not mmap %llu bytes at [%p] - please use '--base-virtaddr' option\n",
+			(unsigned long long)mem_sz, msl->base_va);
+		else
+			RTE_LOG(ERR, EAL, "Cannot reserve memory\n");
+		return -1;
+	}
+	msl->base_va = addr;
+
+	return 0;
+}
+
+static int __rte_unused
+memseg_primary_init(void)
+{
+	/*
+	*  Primary memory has already been initialized in store_memseg_info()
+	*  Keeping the stub function for integration with common code.
+	*/
+
+	return 0;
+}
+
+static int
+memseg_secondary_init(void)
+{
+	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
+	int msl_idx = 0;
+	struct rte_memseg_list *msl;
+
+	for (msl_idx = 0; msl_idx < RTE_MAX_MEMSEG_LISTS; msl_idx++) {
+
+		msl = &mcfg->memsegs[msl_idx];
+
+		/* skip empty memseg lists */
+		if (msl->memseg_arr.len == 0)
+			continue;
+
+		if (rte_fbarray_attach(&msl->memseg_arr)) {
+			RTE_LOG(ERR, EAL, "Cannot attach to primary process memseg lists\n");
+			return -1;
+		}
+
+		/* preallocate VA space */
+		if (alloc_va_space(msl)) {
+			RTE_LOG(ERR, EAL, "Cannot preallocate VA space for hugepage memory\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+
+int
+rte_eal_memseg_init(void)
+{
+	return rte_eal_process_type() == RTE_PROC_PRIMARY ? memseg_primary_init() : memseg_secondary_init();
 }

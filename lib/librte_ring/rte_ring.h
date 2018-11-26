@@ -26,8 +26,9 @@
  * - Bulk dequeue.
  * - Bulk enqueue.
  *
- * Note: the ring implementation is not preemptable. A lcore must not
- * be interrupted by another task that uses the same ring.
+ * Note: the ring implementation is not preemptible. Refer to Programmer's
+ * guide/Environment Abstraction Layer/Multiple pthread/Known Issues/rte_ring
+ * for more information.
  *
  */
 
@@ -62,14 +63,6 @@ enum rte_ring_queue_behavior {
 
 struct rte_memzone; /* forward declaration, so as not to require memzone.h */
 
-#if RTE_CACHE_LINE_SIZE < 128
-#define PROD_ALIGN (RTE_CACHE_LINE_SIZE * 2)
-#define CONS_ALIGN (RTE_CACHE_LINE_SIZE * 2)
-#else
-#define PROD_ALIGN RTE_CACHE_LINE_SIZE
-#define CONS_ALIGN RTE_CACHE_LINE_SIZE
-#endif
-
 /* structure to hold a pair of head/tail values and other metadata */
 struct rte_ring_headtail {
 	volatile uint32_t head;  /**< Prod/consumer head. */
@@ -102,11 +95,15 @@ struct rte_ring {
 	uint32_t mask;           /**< Mask (size-1) of ring. */
 	uint32_t capacity;       /**< Usable size of ring */
 
+	char pad0 __rte_cache_aligned; /**< empty cache line */
+
 	/** Ring producer status. */
-	struct rte_ring_headtail prod __rte_aligned(PROD_ALIGN);
+	struct rte_ring_headtail prod __rte_cache_aligned;
+	char pad1 __rte_cache_aligned; /**< empty cache line */
 
 	/** Ring consumer status. */
-	struct rte_ring_headtail cons __rte_aligned(CONS_ALIGN);
+	struct rte_ring_headtail cons __rte_cache_aligned;
+	char pad2 __rte_cache_aligned; /**< empty cache line */
 };
 #else
 struct rte_ring {
@@ -124,11 +121,15 @@ struct rte_ring {
 	uint32_t mask;           /**< Mask (size-1) of ring. */
 	uint32_t capacity;       /**< Usable size of ring */
 
+	RTE_CACHE_ALIGN char pad0; /**< empty cache line */
+
 	/** Ring producer status. */
-	__declspec(align(PROD_ALIGN)) struct rte_ring_headtail prod;
+	RTE_CACHE_ALIGN struct rte_ring_headtail prod;
+	RTE_CACHE_ALIGN char pad1; /**< empty cache line */
 
 	/** Ring consumer status. */
-	__declspec(align(CONS_ALIGN)) struct rte_ring_headtail cons;
+	RTE_CACHE_ALIGN struct rte_ring_headtail cons;
+	RTE_CACHE_ALIGN char pad2; /**< empty cache line */
 };
 #endif
 
@@ -410,7 +411,7 @@ __rte_ring_do_dequeue(struct rte_ring *r, void **obj_table,
 	uint32_t cons_head, cons_next;
 	uint32_t entries;
 
-	n = __rte_ring_move_cons_head(r, is_sc, n, behavior,
+	n = __rte_ring_move_cons_head(r, (int)is_sc, n, behavior,
 			&cons_head, &cons_next, &entries);
 	if (n == 0)
 		goto end;

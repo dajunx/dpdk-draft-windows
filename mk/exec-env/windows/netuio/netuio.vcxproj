@@ -85,22 +85,22 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <Inf Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio.inf" />
+    <Inf Include="..\..\..\..\kernel\windows\netuio\netuio.inf" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio.rc" />
+    <ResourceCompile Include="..\..\..\..\kernel\windows\netuio\netuio.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_dev.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_drv.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_interface.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_queue.h" />
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\resource.h" />
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_dev.h" />
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_drv.h" />
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_interface.h" />
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_queue.h" />
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_dev.c" />
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_drv.c" />
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_queue.c" />
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_dev.c" />
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_drv.c" />
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_queue.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

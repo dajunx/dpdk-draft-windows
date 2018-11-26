@@ -30,6 +30,9 @@
     <ClCompile Include="..\..\..\..\lib\librte_mempool\rte_mempool_ops.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_mempool\rte_mempool_ops_default.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\include_override\unistd.h">

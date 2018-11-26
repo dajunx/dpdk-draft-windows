@@ -69,6 +69,9 @@
     <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_rxtx_vec_avx2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\drivers\net\i40e\i40e_vf_representor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\drivers\net\i40e\i40e_rxtx.h">

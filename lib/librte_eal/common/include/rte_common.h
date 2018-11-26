@@ -81,22 +81,14 @@ typedef uint16_t unaligned_uint16_t;
  */
 #define RTE_SET_USED(x) (void)(x)
 
-/**
- * Run function before main() with low priority.
- *
- * The constructor will be run after prioritized constructors.
- *
- * @param func
- *   Constructor function.
- */
-#ifndef _WIN64
-#define RTE_INIT(func) \
-static void __attribute__((constructor, used)) func(void)
-#else
-/* Re-define this without the __attribute__ and static declarator */
-#define RTE_INIT(func) \
-void func(void)
-#endif
+#define RTE_PRIORITY_LOG 101
+#define RTE_PRIORITY_BUS 110
+#define RTE_PRIORITY_CLASS 120
+#define RTE_PRIORITY_LAST 65535
+
+#define RTE_PRIO(prio) \
+	RTE_PRIORITY_ ## prio
+
 /**
  * Run function before main() with high priority.
  *
@@ -108,11 +100,52 @@ void func(void)
  */
 #ifndef _WIN64
 #define RTE_INIT_PRIO(func, prio) \
-static void __attribute__((constructor(prio), used)) func(void)
+static void __attribute__((constructor(RTE_PRIO(prio)), used)) func(void)
 #else
-/* Re-define this the same as RTE_INIT */
-#define RTE_INIT_PRIO(func, prio) RTE_INIT(func)
+/* Re-define this without the __attribute__ and static declarator */
+#define RTE_INIT_PRIO(func, prio) \
+void func(void)
 #endif
+
+
+/**
+ * Run function before main() with low priority.
+ *
+ * The constructor will be run after prioritized constructors.
+ *
+ * @param func
+ *   Constructor function.
+ */
+#define RTE_INIT(func) \
+	RTE_INIT_PRIO(func, LAST)
+
+/**
+ * Run after main() with low priority.
+ *
+ * @param func
+ *   Destructor function name.
+ * @param prio
+ *   Priority number must be above 100.
+ *   Lowest number is the last to run.
+ */
+ #ifndef _WIN64
+#define RTE_FINI_PRIO(func, prio) \
+static void __attribute__((destructor(RTE_PRIO(prio)), used)) func(void)
+#else
+/* Re-define this the same as RTE_INIT_PRIO */
+#define RTE_FINI_PRIO(func, prio) RTE_INIT_PRIO(func)
+#endif
+
+/**
+ * Run after main() with high priority.
+ *
+ * The destructor will be run *before* prioritized destructors.
+ *
+ * @param func
+ *   Destructor function name.
+ */
+#define RTE_FINI(func) \
+	RTE_FINI_PRIO(func, LAST)
 
 /**
  * Force a function to be inlined
@@ -201,6 +234,22 @@ static void __attribute__((constructor(prio), used)) func(void)
 #define RTE_ALIGN(val, align) RTE_ALIGN_CEIL(val, align)
 
 /**
+ * Macro to align a value to the multiple of given value. The resultant
+ * value will be of the same type as the first parameter and will be no lower
+ * than the first parameter.
+ */
+#define RTE_ALIGN_MUL_CEIL(v, mul) \
+	(((v + (typeof(v))(mul) - 1) / ((typeof(v))(mul))) * (typeof(v))(mul))
+
+/**
+ * Macro to align a value to the multiple of given value. The resultant
+ * value will be of the same type as the first parameter and will be no higher
+ * than the first parameter.
+ */
+#define RTE_ALIGN_MUL_FLOOR(v, mul) \
+	((v / ((typeof(v))(mul))) * (typeof(v))(mul))
+
+/**
  * Checks if a pointer is aligned to a given power-of-two value
  *
  * @param ptr
@@ -237,7 +286,57 @@ extern int RTE_BUILD_BUG_ON_detected_error;
 } while(0)
 #endif
 
+/**
+ * Combines 32b inputs most significant set bits into the least
+ * significant bits to construct a value with the same MSBs as x
+ * but all 1's under it.
+ *
+ * @param x
+ *    The integer whose MSBs need to be combined with its LSBs
+ * @return
+ *    The combined value.
+ */
+static inline uint32_t
+rte_combine32ms1b(register uint32_t x)
+{
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+
+	return x;
+}
+
+/**
+ * Combines 64b inputs most significant set bits into the least
+ * significant bits to construct a value with the same MSBs as x
+ * but all 1's under it.
+ *
+ * @param v
+ *    The integer whose MSBs need to be combined with its LSBs
+ * @return
+ *    The combined value.
+ */
+static inline uint64_t
+rte_combine64ms1b(register uint64_t v)
+{
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	v |= v >> 32;
+
+	return v;
+}
+
 /*********** Macros to work with powers of 2 ********/
+
+/**
+ * Macro to return 1 if n is a power of 2, 0 otherwise
+ */
+#define RTE_IS_POWER_OF_2(n) ((n) && !(((n) - 1) & (n)))
 
 /**
  * Returns true if n is a power of 2
@@ -264,13 +363,26 @@ static inline uint32_t
 rte_align32pow2(uint32_t x)
 {
 	x--;
-	x |= x >> 1;
-	x |= x >> 2;
-	x |= x >> 4;
-	x |= x >> 8;
-	x |= x >> 16;
+	x = rte_combine32ms1b(x);
 
 	return x + 1;
+}
+
+/**
+ * Aligns input parameter to the previous power of 2
+ *
+ * @param x
+ *   The integer value to algin
+ *
+ * @return
+ *   Input parameter aligned to the previous power of 2
+ */
+static inline uint32_t
+rte_align32prevpow2(uint32_t x)
+{
+	x = rte_combine32ms1b(x);
+
+	return x - (x >> 1);
 }
 
 /**
@@ -286,14 +398,26 @@ static inline uint64_t
 rte_align64pow2(uint64_t v)
 {
 	v--;
-	v |= v >> 1;
-	v |= v >> 2;
-	v |= v >> 4;
-	v |= v >> 8;
-	v |= v >> 16;
-	v |= v >> 32;
+	v = rte_combine64ms1b(v);
 
 	return v + 1;
+}
+
+/**
+ * Aligns 64b input parameter to the previous power of 2
+ *
+ * @param v
+ *   The 64b value to align
+ *
+ * @return
+ *   Input parameter aligned to the previous power of 2
+ */
+static inline uint64_t
+rte_align64prevpow2(uint64_t v)
+{
+	v = rte_combine64ms1b(v);
+
+	return v - (v >> 1);
 }
 
 /*********** Macros for calculating min and max **********/

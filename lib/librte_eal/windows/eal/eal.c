@@ -1,40 +1,12 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2017-2018 Intel Corporation
+*/
 
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <direct.h>
 
 #include <rte_eal.h>
 #include <rte_eal_memconfig.h>
@@ -43,6 +15,7 @@
 #include <rte_cycles.h>
 #include <rte_errno.h>
 #include <rte_windows.h>
+#include <malloc_heap.h>
 
 #include "eal_private.h"
 #include "eal_thread.h"
@@ -133,6 +106,8 @@ rte_eal_iova_mode(void)
 	return rte_eal_get_configuration()->iova_mode;
 }
 
+/* platform-specific runtime dir */
+static char runtime_dir[PATH_MAX];
 
 /* create memory configuration in shared/mmap memory. Take out
  * a write lock on the memsegs, so we can auto-detect primary/secondary.
@@ -378,6 +353,13 @@ eal_parse_args(int argc, char **argv)
 		}
 	}
 
+	/* create runtime data directory */
+	if (internal_config.no_shconf == 0 &&
+		eal_create_runtime_dir() < 0) {
+		RTE_LOG(ERR, EAL, "Cannot create runtime directory\n");
+		return ret = -1;
+	}
+
 	if (eal_adjust_config(&internal_config) != 0)
 		return -1;
 
@@ -394,6 +376,14 @@ eal_parse_args(int argc, char **argv)
 	return ret;
 }
 
+static int
+check_socket(const struct rte_memseg_list *msl, void *arg)
+{
+	int *socket_id = arg;
+
+	return *socket_id == msl->socket_id;
+}
+
 static void
 eal_check_mem_on_local_socket(void)
 {
@@ -402,15 +392,8 @@ eal_check_mem_on_local_socket(void)
 
 	socket_id = rte_lcore_to_socket_id(rte_config.master_lcore);
 
-	ms = rte_eal_get_physmem_layout();
-
-	for (i = 0; i < RTE_MAX_MEMSEG; i++)
-		if (ms[i].socket_id == socket_id &&
-				ms[i].len > 0)
-			return;
-
-	RTE_LOG(WARNING, EAL, "WARNING: Master core has no "
-			"memory on local socket!\n");
+	if (rte_memseg_list_walk(check_socket, &socket_id) == 0)
+		RTE_LOG(WARNING, EAL, "WARNING: Master core has no memory on local socket!\n");
 }
 
 static int
@@ -549,6 +532,8 @@ rte_eal_init(int argc, char **argv)
 	if (fctret < 0)
 		exit(1);
 
+	rte_config_init();
+
 	if (internal_config.no_hugetlbfs == 0 &&
 			internal_config.process_type != RTE_PROC_SECONDARY &&
 			eal_hugepage_info_init() < 0)
@@ -574,18 +559,23 @@ rte_eal_init(int argc, char **argv)
 
 	rte_srand(rte_rdtsc());
 
-	rte_config_init();
-
 	/* Do the PCI scan before initializing memory since we need the memory region
 	   mapped inside the kernel driver which we'll retrieve via an IOCTL */
 	if (rte_pci_scan() < 0)
 		rte_panic("Cannot init PCI\n");
 
+	/* in secondary processes, memory init may allocate additional fbarrays
+	* not present in primary processes, so to avoid any potential issues,
+	* initialize memzones first.
+	*/
+	if (rte_eal_memzone_init() < 0)
+		rte_panic("Cannot init memzone\n");
+
 	if (rte_eal_memory_init() < 0)
 		rte_panic("Cannot init memory\n");
 
-	if (rte_eal_memzone_init() < 0)
-		rte_panic("Cannot init memzone\n");
+	if (rte_eal_malloc_heap_init() < 0)
+		rte_panic("Cannot init malloc heap\n");
 
 	if (rte_eal_tailqs_init() < 0)
 		rte_panic("Cannot init tail queues for objects\n");
@@ -677,4 +667,56 @@ enum rte_proc_type_t
 rte_eal_process_type(void)
 {
 	return rte_config.process_type;
+}
+
+int
+eal_create_runtime_dir(void)
+{
+	char  Directory[PATH_MAX];
+
+	GetTempPathA(sizeof(Directory), Directory);
+
+	char tmp[PATH_MAX];
+	int ret;
+
+
+	/* create DPDK subdirectory under runtime dir */
+	ret = snprintf(tmp, sizeof(tmp), "%s\\dpdk", Directory);
+	if (ret < 0 || ret == sizeof(tmp)) {
+		RTE_LOG(ERR, EAL, "Error creating DPDK runtime path name\n");
+		return -1;
+	}
+
+	/* create prefix-specific subdirectory under DPDK runtime dir */
+	ret = snprintf(runtime_dir, sizeof(runtime_dir), "%s\\%s",
+		tmp, internal_config.hugefile_prefix);
+	if (ret < 0 || ret == sizeof(runtime_dir)) {
+		RTE_LOG(ERR, EAL, "Error creating prefix-specific runtime path name\n");
+		return -1;
+	}
+
+	/* create the path if it doesn't exist. no "mkdir -p" here, so do it
+	* step by step.
+	*/
+	ret = mkdir(tmp);
+	if (ret < 0 && errno != EEXIST) {
+		RTE_LOG(ERR, EAL, "Error creating '%s': %s\n",
+			tmp, strerror(errno));
+		return -1;
+	}
+
+	ret = mkdir(runtime_dir);
+	if (ret < 0 && errno != EEXIST) {
+		RTE_LOG(ERR, EAL, "Error creating '%s': %s\n",
+			runtime_dir, strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+const char *
+eal_get_runtime_dir(void)
+{
+	return runtime_dir;
 }

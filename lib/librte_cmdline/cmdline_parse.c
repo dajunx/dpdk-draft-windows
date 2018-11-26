@@ -440,7 +440,7 @@ cmdline_complete(struct cmdline *cl, const char *buf, int *state,
 				if ((unsigned)(comp_len + 1) > size)
 					return 0;
 
-				snprintf(dst, size, "%s", comp_buf);
+				strlcpy(dst, comp_buf, size);
 				dst[comp_len] = 0;
 				return 2;
 			}
@@ -517,7 +517,7 @@ cmdline_complete(struct cmdline *cl, const char *buf, int *state,
 					continue;
 				}
 				(*state)++;
-				l=snprintf(dst, size, "%s", tmpbuf);
+				l=strlcpy(dst, tmpbuf, size);
 				if (l>=0 && token_hdr.ops->get_help) {
 					token_hdr.ops->get_help(token_p, tmpbuf,
 								sizeof(tmpbuf));

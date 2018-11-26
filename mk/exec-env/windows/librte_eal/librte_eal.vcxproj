@@ -14,7 +14,7 @@
     <ProjectGuid>{7380DC42-DE9A-4BA3-B153-FC0156DA20B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librte_eal</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -62,6 +62,7 @@
       <AdditionalIncludeDirectories>C:\winddk\MSVS2015_SDK_WDK_Windows10_14393\Program Files\Microsoft Visual Studio 14.0\VC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <UndefinePreprocessorDefinitions>__ICL</UndefinePreprocessorDefinitions>
       <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <CCppSupport>C99Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -78,6 +79,7 @@
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\winddk\MSVS2015_SDK_WDK_Windows10_14393\Program Files\Microsoft Visual Studio 14.0\VC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <CCppSupport>C99Support</CCppSupport>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -87,6 +89,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_bus.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_class.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_cpuflags.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_dev.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_devargs.c" />
@@ -95,7 +98,7 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_hypervisor.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_launch.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_lcore.c" />
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_log.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_memalloc.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_memory.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_memzone.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_options.c" />
@@ -104,17 +107,18 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_thread.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_timer.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_elem.c" />
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_heap.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_keepalive.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_malloc.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_reciprocal.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_alarm.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_debug.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_fbarray.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_hugepage_info.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_interrupts.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_lcore.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_log.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_memalloc.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_memory.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_thread.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_timer.c" />
@@ -127,9 +131,12 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\termios.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\unistd.c" />
     <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\_rand48.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\malloc_heap.c" />
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\malloc_mp.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_internal_cfg.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_memalloc.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_options.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_private.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_thread.h" />
@@ -157,6 +164,7 @@
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_version.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_elem.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_heap.h" />
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_mp.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\eal\eal_filesystem.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\eal\eal_pci_private.h" />
     <ClInclude Include="..\..\..\..\lib\librte_eal\windows\include_override\rand48.h" />

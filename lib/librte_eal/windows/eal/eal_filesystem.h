@@ -1,35 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2017-2018 Intel Corporation
+*/
 
 /**
  * @file
@@ -43,7 +14,16 @@
 #include <rte_windows.h>
 #include "eal_internal_cfg.h"
 
-/* define the default filename prefix for the %s values below */
+
+ /* sets up platform-specific runtime data dir */
+int
+eal_create_runtime_dir(void);
+
+/* returns runtime dir */
+const char *
+eal_get_runtime_dir(void);
+
+ /* define the default filename prefix for the %s values below */
 #define HUGEFILE_PREFIX_DEFAULT "rte"
 
 /* Path of rte config file */
@@ -58,6 +38,28 @@ eal_runtime_config_path(void)
 	GetTempPathA(sizeof(Directory), Directory);
 	snprintf(buffer, sizeof(buffer)-1, RUNTIME_CONFIG_FMT, Directory, internal_config.hugefile_prefix);
 
+	return buffer;
+}
+
+/* Path of file backed array*/
+#define FBARRAY_NAME_FMT "%s\\fbarray_%s"
+
+static inline const char *
+eal_get_fbarray_path(char *buffer, size_t buflen, const char *name) {
+	snprintf(buffer, buflen, FBARRAY_NAME_FMT, eal_get_runtime_dir(), name);
+	return buffer;
+}
+
+/** Path of primary/secondary communication unix socket file. */
+#define MP_SOCKET_FNAME "mp_socket"
+
+static inline const char *
+eal_mp_socket_path(void)
+{
+	static char buffer[PATH_MAX]; /* static so auto-zeroed */
+
+	snprintf(buffer, sizeof(buffer) - 1, "%s/%s", eal_get_runtime_dir(),
+		MP_SOCKET_FNAME);
 	return buffer;
 }
 

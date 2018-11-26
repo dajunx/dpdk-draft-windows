@@ -1,34 +1,5 @@
-/*-
-*   BSD LICENSE
-*
-*   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
-*   All rights reserved.
-*
-*   Redistribution and use in source and binary forms, with or without
-*   modification, are permitted provided that the following conditions
-*   are met:
-*
-*     * Redistributions of source code must retain the above copyright
-*       notice, this list of conditions and the following disclaimer.
-*     * Redistributions in binary form must reproduce the above copyright
-*       notice, this list of conditions and the following disclaimer in
-*       the documentation and/or other materials provided with the
-*       distribution.
-*     * Neither the name of Intel Corporation nor the names of its
-*       contributors may be used to endorse or promote products derived
-*       from this software without specific prior written permission.
-*
-*   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-*   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-*   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-*   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-*   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-*   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-*   OF THIS SOFTWARE, EVEN I ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2017-2018 Intel Corporation
 */
 
 #ifndef _RTE_ATOMIC_H_
@@ -86,7 +57,7 @@
 static inline int
 rte_atomic16_cmpset(volatile uint16_t *dst, uint16_t exp, uint16_t src)
 {
-    return (_InterlockedCompareExchange16(dst, src, exp) != src);
+    return (_InterlockedCompareExchange16((SHORT *)dst, src, exp) != src);
 }
 
 /**
@@ -366,7 +337,7 @@ rte_atomic32_read(const rte_atomic32_t *v)
 static inline void
 rte_atomic32_set(rte_atomic32_t *v, int32_t new_value)
 {
-    _InterlockedExchange(&v->cnt, new_value);
+    _InterlockedExchange((LONG volatile *)&v->cnt, new_value);
 }
 
 /**
@@ -380,7 +351,7 @@ rte_atomic32_set(rte_atomic32_t *v, int32_t new_value)
 static inline void
 rte_atomic32_add(rte_atomic32_t *v, int32_t inc)
 {
-    _InterlockedExchangeAdd(&v->cnt, inc);
+    _InterlockedExchangeAdd((LONG volatile *)&v->cnt, inc);
 }
 
 /**
@@ -394,7 +365,7 @@ rte_atomic32_add(rte_atomic32_t *v, int32_t inc)
 static inline void
 rte_atomic32_sub(rte_atomic32_t *v, int32_t dec)
 {
-    _InterlockedExchangeAdd(&v->cnt, (-dec));
+    _InterlockedExchangeAdd((LONG volatile *)&v->cnt, (-dec));
 }
 
 /**
@@ -437,7 +408,7 @@ rte_atomic32_dec(rte_atomic32_t *v)
 static inline int32_t
 rte_atomic32_add_return(rte_atomic32_t *v, int32_t inc)
 {
-    _InterlockedExchangeAdd(&v->cnt, inc);
+    _InterlockedExchangeAdd((LONG volatile *)&v->cnt, inc);
     return v->cnt;
 }
 
@@ -458,7 +429,7 @@ rte_atomic32_add_return(rte_atomic32_t *v, int32_t inc)
 static inline int32_t
 rte_atomic32_sub_return(rte_atomic32_t *v, int32_t dec)
 {
-    _InterlockedExchangeAdd(&v->cnt, (-dec));
+    _InterlockedExchangeAdd((LONG volatile *)&v->cnt, (-dec));
     return v->cnt;
 }
 
@@ -541,7 +512,27 @@ static inline void rte_atomic32_clear(rte_atomic32_t *v)
 static inline int
 rte_atomic64_cmpset(volatile uint64_t *dst, uint64_t exp, uint64_t src)
 {
-    return (_InterlockedCompareExchange64(dst, src, exp) != src);
+    return (_InterlockedCompareExchange64((volatile LONG64 *)dst, src, exp) != src);
+}
+
+/**
+* Atomic exchange.
+*
+* (atomic)equivalent to :
+*ret = *dst
+*   *dst = val;
+*return ret;
+*
+* @param dst
+*   The destination location into which the value will be written.
+* @param val
+*   The new value.
+* @return
+*   The original value at that location
+**/
+static inline uint64_t
+rte_atomic64_exchange(volatile uint64_t *dst, uint64_t val){
+	return _InterlockedExchange64((volatile LONG64 *)dst, val);
 }
 
 /**

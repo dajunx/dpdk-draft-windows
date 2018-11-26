@@ -22,7 +22,7 @@
     <ProjectGuid>{8BFAD01C-E51C-45AF-9C8A-8D13763185EC}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librtesecurity</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

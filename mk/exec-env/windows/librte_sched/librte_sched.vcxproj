@@ -26,7 +26,7 @@
     <ProjectGuid>{6B238285-8FEC-425E-9F30-B3E2D9A0EA4B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librtesched</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

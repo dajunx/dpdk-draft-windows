@@ -1,35 +1,7 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2010-2017 Intel Corporation. All rights reserved.
- *   All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause
+* Copyright(c) 2010-2014 Intel Corporation
+*/
+
 #include <unistd.h>
 #include <sys/mman.h>
 #include <tchar.h>
@@ -39,6 +11,10 @@
 #include <devguid.h>
 #include <winioctl.h>
 
+
+#include <rte_errno.h>
+#include <rte_log.h>
+#include <rte_fbarray.h>
 #include <rte_string_fns.h>
 #include <rte_eal_memconfig.h>
 
@@ -240,29 +216,82 @@ error:
 	return ret;
 }
 
+#define MEMSEG_LIST_FMT "memseg-%" PRIu64 "k-%i-%i"
+/*
+ * Initialize the file backed memory for the message list passed
+ */
+static int
+alloc_memseg_list(struct rte_memseg_list *msl, uint64_t page_sz,
+	int n_segs, int socket_id, int type_msl_idx)
+{
+	char name[RTE_FBARRAY_NAME_LEN];
+
+	snprintf(name, sizeof(name), MEMSEG_LIST_FMT, page_sz >> 10, socket_id,
+		type_msl_idx);
+	if (rte_fbarray_init(&msl->memseg_arr, name, n_segs,
+		sizeof(struct rte_memseg))) {
+		RTE_LOG(ERR, EAL, "Cannot allocate memseg list: %s\n",
+			rte_strerror(rte_errno));
+		return -1;
+	}
+
+	msl->page_sz = page_sz;
+	msl->socket_id = socket_id;
+	msl->base_va = NULL;
+
+	RTE_LOG(DEBUG, EAL, "Memseg list allocated: 0x%zxkB at socket %i\n",
+		(size_t)page_sz >> 10, socket_id);
+
+	return 0;
+}
+
 /* Find first free slot and store memory segment information in global configuration */
 static
 ULONG store_memseg_info(struct dpdk_private_info *pvt_info)
 {
-	unsigned ms_cnt;
-
+	unsigned int ms_cnt;
+	unsigned int n_segs;
+	struct rte_fbarray *arr;
+	struct rte_memseg *ms;
+	void *addr;
+	void *phys_addr;
+	uint64_t page_sz = RTE_PGSIZE_4K;
+	
 	/* get pointer to global configuration */
 	struct rte_mem_config *mcfg = rte_eal_get_configuration()->mem_config;
 	if (mcfg == NULL)
 		return ERROR_BAD_CONFIGURATION;
+	/* find first free un-assigned memory segment list*/
+	for (ms_cnt = 0; ms_cnt < RTE_MAX_MEMSEG_LISTS; ms_cnt++) {
+		struct rte_memseg_list *msl = &mcfg->memsegs[ms_cnt];
+		if ((msl != NULL)  && (msl->base_va == NULL)) {
+			/* Initialize the memory segment list configuration */
+			msl->page_sz = page_sz;
+			msl->socket_id = pvt_info->dev_numa_node;
+			n_segs = pvt_info->ms.size / page_sz;
+			// Setup the memory map of the file backed array in the process
+			if (alloc_memseg_list(msl, page_sz, n_segs, pvt_info->dev_numa_node, ms_cnt))
+				return ERROR_OUTOFMEMORY;
+			msl->base_va = pvt_info->ms.user_mapped_virt_addr;
+			int cur_seg;
+			addr = pvt_info->ms.user_mapped_virt_addr;
+			phys_addr = (void *)(uintptr_t)pvt_info->ms.phys_addr.QuadPart;
+			// Setup up each memseg with approriate physical and virtual address.
+			for (cur_seg = 0; cur_seg < n_segs; cur_seg++) {
+				arr = &msl->memseg_arr;
+				ms = rte_fbarray_get(arr, cur_seg);
+				ms->phys_addr = (phys_addr_t)phys_addr;
+				ms->addr = addr;
+				ms->hugepage_sz = msl->page_sz;
+				ms->socket_id = pvt_info->dev_numa_node;
+				ms->len = msl->page_sz;
+				
+				// Mark the segment used to make it available for usage with heap
+				rte_fbarray_set_used(arr, cur_seg);
 
-	for (ms_cnt = 0; ms_cnt < RTE_MAX_MEMSEG; ms_cnt++) {
-		/* Find first available slot */
-		struct rte_memseg *ms = &mcfg->memseg[ms_cnt];
-		if ((ms->addr == NULL) && (ms->len == 0)) {
-			ms->phys_addr = (phys_addr_t)(uintptr_t)pvt_info->ms.phys_addr.QuadPart;
-			ms->addr = pvt_info->ms.user_mapped_virt_addr;
-			ms->hugepage_sz = RTE_PGSIZE_4K;
-			ms->len = pvt_info->ms.size;
-			ms->socket_id = pvt_info->dev_numa_node;
-			/* Clear the memory segment */
-			memset(ms->addr, 0, ms->len);
-
+				addr = RTE_PTR_ADD(addr, (size_t)msl->page_sz);
+				phys_addr = RTE_PTR_ADD(phys_addr, (size_t)msl->page_sz);
+			}
 			return ERROR_SUCCESS;
 		}
 	}

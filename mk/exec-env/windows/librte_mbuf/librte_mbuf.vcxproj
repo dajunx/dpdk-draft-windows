@@ -43,7 +43,7 @@
     <ProjectGuid>{C6145F57-70FE-485D-BF16-F0C88632B6E2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>librte_mbuf</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

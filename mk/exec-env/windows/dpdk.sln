@@ -14,7 +14,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librte_hash", "librte_hash\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librte_distributor", "librte_distributor\librte_distributor.vcxproj", "{B2906C80-2E62-4ADE-9295-E4F98BE946B4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librte_ether", "librte_ether\librte_ether.vcxproj", "{7E0025BB-72B3-4906-B0DE-4B45A1E22B0A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librte_ethdev", "librte_ethdev\librte_ethdev.vcxproj", "{7E0025BB-72B3-4906-B0DE-4B45A1E22B0A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "librte_eal", "librte_eal\librte_eal.vcxproj", "{7380DC42-DE9A-4BA3-B153-FC0156DA20B7}"
 	ProjectSection(ProjectDependencies) = postProject

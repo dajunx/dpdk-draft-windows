@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2017 Intel Corporation
+ * Copyright(c) 2018 Intel Corporation
  */
 
 #include <unistd.h>
@@ -46,7 +46,7 @@ struct rte_latency_stats {
 static struct rte_latency_stats *glob_stats;
 
 struct rxtx_cbs {
-	struct rte_eth_rxtx_callback *cb;
+	const struct rte_eth_rxtx_callback *cb;
 };
 
 static struct rxtx_cbs rx_cbs[RTE_MAX_ETHPORTS][RTE_MAX_QUEUES_PER_PORT];
@@ -266,6 +266,7 @@ rte_latencystats_uninit(void)
 	uint16_t qid;
 	int ret = 0;
 	struct rxtx_cbs *cbs = NULL;
+	const struct rte_memzone *mz = NULL;
 	const uint16_t nb_ports = rte_eth_dev_count();
 
 	/** De register Rx/Tx callbacks */
@@ -289,6 +290,11 @@ rte_latencystats_uninit(void)
 					"qid=%d\n", pid, qid);
 		}
 	}
+
+	/* free up the memzone */
+	mz = rte_memzone_lookup(MZ_RTE_LATENCY_STATS);
+	if (mz)
+		rte_memzone_free(mz);
 
 	return 0;
 }

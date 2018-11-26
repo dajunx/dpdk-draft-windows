@@ -42,9 +42,6 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_lcore.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_log.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_memory.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -67,9 +64,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_elem.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\common\malloc_heap.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_malloc.c">
@@ -144,6 +138,24 @@
     <ClCompile Include="..\..\..\..\lib\librte_eal\common\rte_reciprocal.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_class.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_fbarray.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\common\eal_common_memalloc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\eal_memalloc.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\malloc_mp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\malloc_heap.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_private.h">
@@ -153,9 +165,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_internal_cfg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_elem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_heap.h">
@@ -273,6 +282,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\eal_memalloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_mp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\malloc_elem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

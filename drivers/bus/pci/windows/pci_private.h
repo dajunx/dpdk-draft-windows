@@ -41,7 +41,7 @@
 typedef LARGE_INTEGER PHYSICAL_ADDRESS, *PPHYSICAL_ADDRESS;
 
 /* include the header for netuio driver interface definitions */
-#include <..\netuio\netuio_interface.h>
+#include <..\..\kernel\windows\netuio\netuio_interface.h>
 
 /* Function prototpyes */
 int eal_pci_init(void);
