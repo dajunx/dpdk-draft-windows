@@ -18,7 +18,7 @@ This port of the DPDK libraries and sample applications are presently only suppo
 
 Poll Mode Driver support is expected shortly for these NICs:
 •	Cavium 
-•	Broadcom
+•	Broadcom NetExtreme E-series of adapters (10/25/40/50/100G)
 •	Chelsio
 
 This following libraries and example applications have been ported and confirmed to be working with expected performance on Windows: (Note: this is not the complete list of all DPDK libraries)
