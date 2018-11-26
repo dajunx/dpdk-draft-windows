@@ -1,11 +1,15 @@
 DPDK is a set of libraries and drivers for fast packet processing.
-It supports many processor architectures and both FreeBSD and Linux.
+It supports many processor architectures and operating systems including Linux, FreeBSD, and Windows.
 
 The DPDK uses the Open Source BSD-3-Clause license for the core libraries
-and drivers. The kernel components are GPL-2.0 licensed.
+and drivers. The Linux/BSD kernel components are GPL-2.0 licensed. The Windows kernel component (UIO driver) is MIT licensed.
 
 Please check the doc directory for release notes,
 API documentation, and sample application information.
 
+Instructions on how to build DPDK core libraries and UIO drivers for Windows can be found in the doc\guides\windows.md file. 
+
 For questions and usage discussions, subscribe to: users@dpdk.org
 Report bugs and issues to the development mailing list: dev@dpdk.org
+
+For Windows development please reach out to jmesser@microsoft.com
