@@ -1,0 +1,168 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\windows override">
+      <UniqueIdentifier>{54560448-b59d-423b-b63a-a01f274bb0fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\windows override">
+      <UniqueIdentifier>{841be7cf-47de-418d-b317-ac32e1c98e49}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\_rand48.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\lrand48.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\eal\linux-emu\srand48.c">
+      <Filter>Source Files\windows override</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\librte_timer\rte_timer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\arch\x86\rte_byteorder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_interrupts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_pci.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_memzone.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_launch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\include_override\rand48.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_byteorder.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_debug.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memcpy.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_memory.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_pci.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_eal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_per_lcore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_per_lcore.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_lcore.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_lcore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_atomic.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_common.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_branch_prediction.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_mempool\rte_mempool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ring\rte_ring.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_malloc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_mbuf\rte_mbuf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_errno.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\rte_override\rte_spinlock.h">
+      <Filter>Header Files\windows override</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_string_fns.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ether.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_eal\common\include\rte_random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\ethdev_profile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_ethdev_pci.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_flow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_flow_driver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_tm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_ether\rte_eth_ctrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_net\rte_net.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_net\rte_tcp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_net\rte_udp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\lib\librte_timer\rte_timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
