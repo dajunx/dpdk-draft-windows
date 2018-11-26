@@ -19,40 +19,40 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Inf Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio.inf">
+    <Inf Include="..\..\..\..\kernel\windows\netuio\netuio.inf">
       <Filter>Driver Files</Filter>
     </Inf>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio.rc">
+    <ResourceCompile Include="..\..\..\..\kernel\windows\netuio\netuio.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_interface.h">
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_dev.h">
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_dev.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_drv.h">
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_drv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_queue.h">
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\netuio_queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\librte_eal\windows\netuio\resource.h">
+    <ClInclude Include="..\..\..\..\kernel\windows\netuio\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_queue.c">
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_queue.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_dev.c">
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_dev.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\librte_eal\windows\netuio\netuio_drv.c">
+    <ClCompile Include="..\..\..\..\kernel\windows\netuio\netuio_drv.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
