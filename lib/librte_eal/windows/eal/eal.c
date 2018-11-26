@@ -109,7 +109,7 @@ extern void init_rte_lpm6_tailq(void);
 extern void pciinitfn_net_i40e(void);
 
 /* these are more constructor-like function, that we'll need to call at the start */
-extern void rte_timer_init(void);
+extern void rte_timer_eal_init(void);
 extern void rte_log_init(void);
 extern void rte_log_init(void);
 extern void i40e_init_log(void);
@@ -520,7 +520,7 @@ rte_eal_init(int argc, char **argv)
 	/* We need to do this before any other eal init calls */
 	eal_register_and_init_pmd();
 
-	rte_timer_init(); /* Use the built-in timer delay function */
+	rte_timer_eal_init(); /* Use the built-in timer delay function */
 
 	if (!rte_atomic32_test_and_set(&run_once))
 		return -1;

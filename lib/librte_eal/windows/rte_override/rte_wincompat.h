@@ -241,6 +241,9 @@ static inline char* WinStrSep(char** ppString, char* pSeparator)
 
 #define sleep(secs)                 Sleep((secs)*1000)   // Windows Sleep() requires milliseconds
 
+// If use of pthread-win32, define _USE_WIN_PTHREAD_ on your external project to prevent conflict with 
+// followings stuff
+#ifndef _USE_WIN_PTHREAD_
 
 // CPU set function overrides
 #define CPU_ZERO(cpuset)                {*cpuset = 0;}
@@ -274,6 +277,8 @@ static inline int WinCreateThreadOverride(void* threadID, void* threadattr, void
 	hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)threadfunc, args, 0, (LPDWORD)threadID);
 	return ((hThread != NULL) ? 0: E_FAIL);
 }
+
+#endif // _USE_WIN_PTHREAD_
 
 /* Winsock IP protocol Numbers (not available on Windows) */
 #define IPPROTO_NONE	59       /* No next header for IPv6 */

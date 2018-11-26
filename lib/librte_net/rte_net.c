@@ -30,6 +30,11 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#define _WINSOCKAPI_ 
+#include <winsock2.h>    
+#include <Ws2tcpip.h>
+#include <rte_windows.h>
+#define _IN_H_
 
 #include <stdint.h>
 
@@ -43,6 +48,7 @@
 #include <rte_sctp.h>
 #include <rte_gre.h>
 #include <rte_net.h>
+
 
 /* get l3 packet type from ip6 next protocol */
 static uint32_t
@@ -157,7 +163,7 @@ ptype_tunnel(uint16_t *proto, const struct rte_mbuf *m,
 	uint32_t *off)
 {
 	switch (*proto) {
-	case IPPROTO_GRE: {
+	/*case IPPROTO_GRE: {
 		static const uint8_t opt_len[16] = {
 			[0x0] = 4,
 			[0x1] = 8,
@@ -190,7 +196,7 @@ ptype_tunnel(uint16_t *proto, const struct rte_mbuf *m,
 	}
 	case IPPROTO_IPIP:
 		*proto = rte_cpu_to_be_16(ETHER_TYPE_IPv4);
-		return RTE_PTYPE_TUNNEL_IP;
+		return RTE_PTYPE_TUNNEL_IP;*/
 	case IPPROTO_IPV6:
 		*proto = rte_cpu_to_be_16(ETHER_TYPE_IPv6);
 		return RTE_PTYPE_TUNNEL_IP; /* IP is also valid for IPv6 */
