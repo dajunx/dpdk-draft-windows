@@ -17,7 +17,7 @@ This port of the DPDK libraries and sample applications are presently only suppo
 •	Windows Server 2016 (hence, 64-bit only)
 
 Poll Mode Driver support is expected shortly for these NICs:
-•	Cavium 
+•	Cavium FastLinQ 41000 series (10/25G)
 •	Broadcom NetExtreme E-series of adapters (10/25/40/50/100G)
 •	Chelsio
 
