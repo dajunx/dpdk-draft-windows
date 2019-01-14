@@ -28,23 +28,23 @@ NTSTATUS
 netuio_create_device(_Inout_ PWDFDEVICE_INIT DeviceInit)
 {
     WDF_OBJECT_ATTRIBUTES deviceAttributes;
-    WDFDEVICE device;
+    WDFDEVICE device = NULL;
     NTSTATUS status;
 
     PAGED_CODE();
 
-	// Ensure that only administrators can access our device object.
-	status = WdfDeviceInitAssignSDDLString(DeviceInit, &SDDL_DEVOBJ_SYS_ALL_ADM_ALL);
+    // Ensure that only administrators can access our device object.
+    status = WdfDeviceInitAssignSDDLString(DeviceInit, &SDDL_DEVOBJ_SYS_ALL_ADM_ALL);
 
-	if (NT_SUCCESS(status)) {
-		WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
+    if (NT_SUCCESS(status)) {
+        WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
 
-		// Set the device context cleanup callback.
-		// This function will be called when the WDF Device Object associated to the current device is destroyed
-		deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
+        // Set the device context cleanup callback.
+        // This function will be called when the WDF Device Object associated to the current device is destroyed
+        deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
 
-		status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
-	}
+        status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
+    }
 
 	if (NT_SUCCESS(status)) {
 		// Create a device interface so that applications can find and talk to us.
@@ -263,7 +263,7 @@ allocate_usermemory_segment(_In_ WDFOBJECT device)
     PHYSICAL_ADDRESS highest_acceptable_address;
     PHYSICAL_ADDRESS boundary_address_multiple;
 
-    lowest_acceptable_address.QuadPart = 0x0000000000800000;
+    lowest_acceptable_address.QuadPart = 0x0000000000000000;
     highest_acceptable_address.QuadPart = 0xFFFFFFFFFFFFFFFF;
     boundary_address_multiple.QuadPart = 0;
 
