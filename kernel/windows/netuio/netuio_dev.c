@@ -32,37 +32,43 @@ netuio_create_device(_Inout_ PWDFDEVICE_INIT DeviceInit)
     NTSTATUS status;
 
     PAGED_CODE();
-    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
 
-    // Set the device context cleanup callback.
-    // This function will be called when the WDF Device Object associated to the current device is destroyed
-    deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
+	// Ensure that only administrators can access our device object.
+	status = WdfDeviceInitAssignSDDLString(DeviceInit, &SDDL_DEVOBJ_SYS_ALL_ADM_ALL);
 
-    status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
+	if (NT_SUCCESS(status)) {
+		WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
+
+		// Set the device context cleanup callback.
+		// This function will be called when the WDF Device Object associated to the current device is destroyed
+		deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
+
+		status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
+	}
+
+	if (NT_SUCCESS(status)) {
+		// Create a device interface so that applications can find and talk to us.
+		status = WdfDeviceCreateDeviceInterface(device, &GUID_DEVINTERFACE_netUIO, NULL);
+	}
 
     if (NT_SUCCESS(status)) {
-        // Create a device interface so that applications can find and talk to us.
-        status = WdfDeviceCreateDeviceInterface(device, &GUID_DEVINTERFACE_netUIO, NULL);
+        // Retrieve and store PCI information
+        status = get_pci_device_info(device);
+    }
 
-        if (NT_SUCCESS(status)) {
-            // Retrieve and store PCI information
-            status = get_pci_device_info(device);
-        }
+    if (NT_SUCCESS(status)) {
+        // Create a symbolic link name for user-space access
+        status = create_device_specific_symbolic_link(device);
+    }
 
-        if (NT_SUCCESS(status)) {
-            // Create a symbolic link name for user-space access
-            status = create_device_specific_symbolic_link(device);
-        }
+    if (NT_SUCCESS(status)) {
+        // Initialize the I/O Package and any Queues
+        status = netuio_queue_initialize(device);
+    }
 
-        if (NT_SUCCESS(status)) {
-            // Initialize the I/O Package and any Queues
-            status = netuio_queue_initialize(device);
-        }
-
-        if (NT_SUCCESS(status)) {
-            // Allocate physically contiguous memory for user process use. We'll map it later
-            status = allocate_usermemory_segment(device);
-        }
+    if (NT_SUCCESS(status)) {
+        // Allocate physically contiguous memory for user process use. We'll map it later
+        status = allocate_usermemory_segment(device);
     }
 
     return status;
