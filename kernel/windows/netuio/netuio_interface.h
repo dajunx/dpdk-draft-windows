@@ -59,9 +59,16 @@ struct dpdk_private_info
 struct dpdk_pci_config_io
 {
     struct dev_addr     dev_addr;
-    PVOID               buf;
     UINT32              offset;
     enum pci_io         op;
+    UINT32              access_size; // 1, 2, 4, or 8 bytes
+
+    union dpdk_pci_config_io_data {
+        UINT8			u8;
+        UINT16			u16;
+        UINT32			u32;
+        UINT64			u64;
+    } data;
 };
 
 #pragma pack(pop)

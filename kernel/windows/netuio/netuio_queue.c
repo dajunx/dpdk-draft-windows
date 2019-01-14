@@ -11,22 +11,23 @@
 #pragma alloc_text (PAGE, netuio_queue_initialize)
 #endif
 
-VOID netuio_read_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, PVOID buffer)
+VOID netuio_read_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, UINT32 access_size, _Out_ UINT64 *output)
 {
+    *output = 0;
     netuio_contextdata->bus_interface.GetBusData(netuio_contextdata->bus_interface.Context,
                                                  PCI_WHICHSPACE_CONFIG,
-                                                 buffer,
+                                                 output,
                                                  offset,
-                                                 sizeof(UINT32));
+                                                 access_size);
 }
 
-VOID netuio_write_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, PVOID buffer)
+VOID netuio_write_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, UINT32 access_size, union dpdk_pci_config_io_data const *input)
 {
     netuio_contextdata->bus_interface.SetBusData(netuio_contextdata->bus_interface.Context,
                                                  PCI_WHICHSPACE_CONFIG,
-                                                 buffer,
+                                                 (PVOID)input,
                                                  offset,
-                                                 sizeof(UINT32));
+                                                 access_size);
 }
 
 static NTSTATUS
@@ -180,6 +181,15 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
         }
 
         struct dpdk_pci_config_io *dpdk_pci_io_input = (struct dpdk_pci_config_io *)input_buf;
+
+        if (dpdk_pci_io_input->access_size != 1 &&
+            dpdk_pci_io_input->access_size != 2 &&
+            dpdk_pci_io_input->access_size != 4 &&
+            dpdk_pci_io_input->access_size != 8) {
+            status = STATUS_INVALID_PARAMETER;
+            break;
+        }
+
         // Ensure that the B:D:F match - otherwise, fail the IOCTL
         if ((netuio_contextdata->addr.bus_num != dpdk_pci_io_input->dev_addr.bus_num) ||
             (netuio_contextdata->addr.dev_num != dpdk_pci_io_input->dev_addr.dev_num) ||
@@ -188,7 +198,7 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
             break;
         }
         // Retrieve output buffer
-        status = WdfRequestRetrieveOutputBuffer(Request, sizeof(UINT32), &output_buf, &output_buf_size);
+        status = WdfRequestRetrieveOutputBuffer(Request, sizeof(UINT64), &output_buf, &output_buf_size);
         if (!NT_SUCCESS(status)) {
             status = STATUS_INVALID_BUFFER_SIZE;
             break;
@@ -196,12 +206,23 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
         ASSERT(output_buf_size == OutputBufferLength);
 
         if (dpdk_pci_io_input->op == PCI_IO_READ) {
-            netuio_read_PCI_config(netuio_contextdata, dpdk_pci_io_input->offset, output_buf);
-            bytes_returned = output_buf_size;
+            netuio_read_PCI_config(netuio_contextdata,
+                                   dpdk_pci_io_input->offset,
+                                   dpdk_pci_io_input->access_size,
+                                   (UINT64*)output_buf);
+            
+            bytes_returned = sizeof(UINT64);
+        }
+        else if (dpdk_pci_io_input->op == PCI_IO_WRITE) {
+            netuio_write_PCI_config(netuio_contextdata,
+                                    dpdk_pci_io_input->offset,
+                                    dpdk_pci_io_input->access_size,
+                                    &dpdk_pci_io_input->data);
+            bytes_returned = 0;
         }
         else {
-            netuio_write_PCI_config(netuio_contextdata, dpdk_pci_io_input->offset, dpdk_pci_io_input->buf);
-            bytes_returned = 0;
+            status = STATUS_INVALID_PARAMETER;
+            break;
         }
 
         break;

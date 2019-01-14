@@ -195,18 +195,23 @@ int pci_config_io(const struct rte_pci_device *dev, void *buf,
 	pci_io.dev_addr.dev_num = dev->addr.devid;
 	pci_io.dev_addr.func_num = dev->addr.function;
 	pci_io.offset = offset;
+	pci_io.access_size = sizeof(UINT32);
 	pci_io.op = operation;
 
 	if (operation == PCI_IO_WRITE)
-		pci_io.buf = buf;
+	{
+		pci_io.data.u32 = *(UINT32 UNALIGNED*)buf;
+	}
 
-	uint32_t  outputbuf = 0;
+	uint64_t  outputbuf = 0;
 	if (send_ioctl(f, IOCTL_NETUIO_PCI_CONFIG_IO, &pci_io, sizeof(pci_io),
 				&outputbuf, sizeof(outputbuf)) != ERROR_SUCCESS)
 		goto error;
 
 	if (operation == PCI_IO_READ)
-		memcpy(buf, &outputbuf, sizeof(outputbuf));
+	{
+		memcpy(buf, &outputbuf, sizeof(UINT32));
+	}
 
 	ret = 0;
 error:
