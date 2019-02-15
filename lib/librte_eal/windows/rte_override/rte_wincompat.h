@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 /* Quick generic implemetation of popcount - all architectures */
-static __forceinline int __popcount(unsigned int x)
+static __forceinline int _popcount(unsigned int x)
 {
 	static const unsigned int m1 = 0x55555555; 
 	static const unsigned int m2 = 0x33333333;
@@ -45,12 +45,12 @@ static __forceinline int __popcount(unsigned int x)
 	return (x * h01) >> 24;
 }
 
-static __forceinline int __builtin_popcountl(unsigned long x)
+static __forceinline int _builtin_popcountl(unsigned long x)
 {
-	return __popcount((unsigned int)x);
+	return _popcount((unsigned int)x);
 }
 
-static __forceinline int __builtin_popcountll(unsigned long long x)
+static __forceinline int _builtin_popcountll(unsigned long long x)
 {
 	static const unsigned long long m1 = 0x5555555555555555LL; 
 	static const unsigned long long m2 = 0x3333333333333333LL;
@@ -63,14 +63,14 @@ static __forceinline int __builtin_popcountll(unsigned long long x)
 	return (x * h01) >> 56;
 }
 
-static __forceinline int __builtin_popcount(unsigned int x)
+static __forceinline int _builtin_popcount(unsigned int x)
 {
-	return __popcount(x);
+	return _popcount(x);
 }
 
 // __builtin_ctz - count of trailing zeroes
 // _BitScanForward returns the bit number of first bit that is 1 starting from the LSB to MSB 
-static __forceinline int __builtin_ctz(unsigned int x)
+static __forceinline int _builtin_ctz(unsigned int x)
 {
 	unsigned long index = 0;
 
@@ -81,13 +81,13 @@ static __forceinline int __builtin_ctz(unsigned int x)
 }
 
 // __builtin_ctzl - count of trailing zeroes for long
-static __forceinline int __builtin_ctzl(unsigned long x)
+static __forceinline int _builtin_ctzl(unsigned long x)
 {
-	return __builtin_ctz((unsigned int) x);
+	return _builtin_ctz((unsigned int) x);
 }
 
 // __builtin_ctzll - count of trailing zeroes for long long (64 bits)
-static __forceinline int __builtin_ctzll(unsigned long long x)
+static __forceinline int _builtin_ctzll(unsigned long long x)
 {
 	unsigned long index = 0;
 
@@ -100,7 +100,7 @@ static __forceinline int __builtin_ctzll(unsigned long long x)
 
 // __builtin_clz - count of leading zeroes
 // _BitScanReverse returns the bit number of first bit that is 1 starting from the MSB to LSB 
-static __forceinline int __builtin_clz(unsigned int x)
+static __forceinline int _builtin_clz(unsigned int x)
 {
 	unsigned long index = 0;
 
@@ -111,13 +111,13 @@ static __forceinline int __builtin_clz(unsigned int x)
 }
 
 // __builtin_clzl - count of leading zeroes for long
-static __forceinline int __builtin_clzl(unsigned long x)
+static __forceinline int _builtin_clzl(unsigned long x)
 {
-	return __builtin_clz((unsigned int) x);
+	return _builtin_clz((unsigned int) x);
 }
 
 // __builtin_clzll - count of leading zeroes for long long (64 bits)
-static __forceinline int __builtin_clzll(unsigned long long x)
+static __forceinline int _builtin_clzll(unsigned long long x)
 {
 	unsigned long index = 0;
 
@@ -127,12 +127,12 @@ static __forceinline int __builtin_clzll(unsigned long long x)
 	return 64;
 }
 
-static __forceinline uint32_t __builtin_bswap32(uint32_t val)
+static __forceinline uint32_t _builtin_bswap32(uint32_t val)
 {
 	return (uint32_t)_byteswap_ulong((unsigned long)val);
 }
 
-static __forceinline uint64_t __builtin_bswap64(uint64_t val)
+static __forceinline uint64_t _builtin_bswap64(uint64_t val)
 {
 	return (uint64_t) _byteswap_uint64((unsigned long long)val);
 }

@@ -38,7 +38,6 @@
 #include "i40e_rxtx.h"
 #include "i40e_pf.h"
 #include "i40e_regs.h"
-#include "rte_pmd_i40e.h"
 
 #define ETH_I40E_FLOATING_VEB_ARG	"enable_floating_veb"
 #define ETH_I40E_FLOATING_VEB_LIST_ARG	"floating_veb_list"

@@ -11,7 +11,6 @@
 #include <getopt.h> /* getopt at: https://gist.github.com/bikerm16/1b75e2dd20d839dcea58 */
 
 /* Types used by Unix-y systems */
-typedef __int8            int8_t;
 typedef __int16           int16_t;
 typedef __int32           int32_t;
 typedef __int64           int64_t;

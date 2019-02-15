@@ -48,15 +48,15 @@ enum rte_page_sizes {
 /**< Return the first cache-aligned value greater or equal to size. */
 
 /**< Cache line size in terms of log2 */
-#if RTE_CACHE_LINE_SIZE == 64
-#define RTE_CACHE_LINE_SIZE_LOG2 6
+#if RTE_CACHE_LINE_SIZE == 32
+#define RTE_CACHE_LINE_SIZE_LOG2 5
 #elif RTE_CACHE_LINE_SIZE == 128
 #define RTE_CACHE_LINE_SIZE_LOG2 7
 #else
 #error "Unsupported cache line size"
 #endif
 
-#define RTE_CACHE_LINE_MIN_SIZE 64	/**< Minimum Cache line size. */
+#define RTE_CACHE_LINE_MIN_SIZE 32	/**< Minimum Cache line size. */
 
 /**
  * Force alignment to cache line.

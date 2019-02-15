@@ -156,8 +156,8 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
             break;
         }
 
-        // Zero out the physically contiguous block
-        RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
+		// Zero out the physically contiguous block
+		RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
 
         // Return relevant data to the caller
         status = WdfRequestRetrieveOutputBuffer(Request, sizeof(struct dpdk_private_info), &output_buf, &output_buf_size);

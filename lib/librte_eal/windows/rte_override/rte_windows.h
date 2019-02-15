@@ -51,10 +51,6 @@ extern "C" {
 	default			: void			\
 )
 
-/*
-* Globally driven over-rides.
-*/
-#define __attribute__(x) 
 
 #define __func__ __FUNCTION__
 

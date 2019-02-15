@@ -1,3 +1,44 @@
+#if !defined(__UNISTD_H_SOURCED__) && !defined(__GETOPT_LONG_H__)
+#define __GETOPT_LONG_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	struct option		/* specification for a long form option...	*/
+	{
+		const char *name;		/* option name, without leading hyphens */
+		int         has_arg;		/* does it take an argument?		*/
+		int        *flag;		/* where to save its status, or NULL	*/
+		int         val;		/* its associated status value		*/
+	};
+
+	enum    		/* permitted values for its `has_arg' field...	*/
+	{
+		no_argument = 0,      	/* option never takes an argument	*/
+		required_argument,		/* option always requires an argument	*/
+		optional_argument		/* option may take an argument		*/
+	};
+
+	extern int getopt_long(int nargc, char * const *nargv, const char *options,
+		const struct option *long_options, int *idx);
+	extern int getopt_long_only(int nargc, char * const *nargv, const char *options,
+		const struct option *long_options, int *idx);
+	/*
+	 * Previous MinGW implementation had...
+	 */
+#ifndef HAVE_DECL_GETOPT
+	 /*
+	  * ...for the long form API only; keep this for compatibility.
+	  */
+# define HAVE_DECL_GETOPT	1
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* !defined(__UNISTD_H_SOURCED__) && !defined(__GETOPT_LONG_H__) */
 #ifndef __GETOPT_H__
 /**
  * DISCLAIMER
@@ -208,45 +249,3 @@ extern int optreset;
  * to declare the extended API.
  */
 #endif /* !defined(__GETOPT_H__) */
-
-#if !defined(__UNISTD_H_SOURCED__) && !defined(__GETOPT_LONG_H__)
-#define __GETOPT_LONG_H__
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct option		/* specification for a long form option...	*/
-{
-  const char *name;		/* option name, without leading hyphens */
-  int         has_arg;		/* does it take an argument?		*/
-  int        *flag;		/* where to save its status, or NULL	*/
-  int         val;		/* its associated status value		*/
-};
-
-enum    		/* permitted values for its `has_arg' field...	*/
-{
-  no_argument = 0,      	/* option never takes an argument	*/
-  required_argument,		/* option always requires an argument	*/
-  optional_argument		/* option may take an argument		*/
-};
-
-extern int getopt_long(int nargc, char * const *nargv, const char *options,
-    const struct option *long_options, int *idx);
-extern int getopt_long_only(int nargc, char * const *nargv, const char *options,
-    const struct option *long_options, int *idx);
-/*
- * Previous MinGW implementation had...
- */
-#ifndef HAVE_DECL_GETOPT
-/*
- * ...for the long form API only; keep this for compatibility.
- */
-# define HAVE_DECL_GETOPT	1
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* !defined(__UNISTD_H_SOURCED__) && !defined(__GETOPT_LONG_H__) */

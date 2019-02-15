@@ -15,6 +15,7 @@
 #include <rte_flow_driver.h>
 #include <rte_tm_driver.h>
 
+#include "rte_pmd_i40e.h"
 #include "base/i40e_register.h"
 
 #define I40E_VLAN_TAG_SIZE        4

@@ -66,7 +66,7 @@ extern "C" {
  * 4-byte chunks to CPU byte order
  */
 static const __m128i rte_thash_ipv6_bswap_mask = {
-		.m128i_u64[0] = 0x0405060700010203ULL,.m128i_u64[1] = 0x0C0D0E0F08090A0BULL };
+		0x0405060700010203ULL,0x0C0D0E0F08090A0BULL };
 #endif
 
 /**
