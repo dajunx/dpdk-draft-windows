@@ -33,18 +33,13 @@ netuio_create_device(_Inout_ PWDFDEVICE_INIT DeviceInit)
 
     PAGED_CODE();
 
-    // Ensure that only administrators can access our device object.
-    status = WdfDeviceInitAssignSDDLString(DeviceInit, &SDDL_DEVOBJ_SYS_ALL_ADM_ALL);
+    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
 
-    if (NT_SUCCESS(status)) {
-        WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
+    // Set the device context cleanup callback.
+    // This function will be called when the WDF Device Object associated to the current device is destroyed
+    deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
 
-        // Set the device context cleanup callback.
-        // This function will be called when the WDF Device Object associated to the current device is destroyed
-        deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
-
-        status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
-    }
+    status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
 
 	if (NT_SUCCESS(status)) {
 		// Create a device interface so that applications can find and talk to us.
