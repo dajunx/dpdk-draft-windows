@@ -12,4 +12,4 @@ Instructions on how to build DPDK core libraries and UIO drivers for Windows can
 For questions and usage discussions, subscribe to: users@dpdk.org
 Report bugs and issues to the development mailing list: dev@dpdk.org
 
-For Windows development please reach out to jmesser@microsoft.com
+For Windows development please reach out to dpdkwin@microsoft.com
