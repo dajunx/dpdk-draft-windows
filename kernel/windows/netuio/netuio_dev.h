@@ -12,7 +12,6 @@ EXTERN_C_START
 #include "netuio_interface.h"
 
 // Constants
-#define PCI_MAX_BAR              3
 #define USER_MEMORY_SEGMENT_SIZE (256ULL * 1024ULL * 1024ULL)   // 256MB
 
 struct pci_bar {
@@ -29,13 +28,13 @@ struct mem_map_region {
 // The device context performs the same job as a WDM device extension in the driver frameworks
 typedef struct _NETUIO_CONTEXT_DATA
 {
-    WDFDEVICE               wdf_device;        // WDF device handle to the FDO
-    BUS_INTERFACE_STANDARD  bus_interface;     // Bus interface for config space access
-    struct pci_bar          bar[PCI_MAX_BAR];  // device BARs
-    struct dev_addr         addr;              // B:D:F details of device
-    USHORT                  dev_numa_node;     // The NUMA node of the device
-    struct mem_map_region   dpdk_hw;           // mapped region for the device's register space
-    struct mem_map_region   dpdk_seg;          // mapped region allocated for DPDK process use
+    WDFDEVICE               wdf_device;             // WDF device handle to the FDO
+    BUS_INTERFACE_STANDARD  bus_interface;          // Bus interface for config space access
+    struct pci_bar          bar[PCI_MAX_BAR];       // device BARs
+    struct dev_addr         addr;                   // B:D:F details of device
+    USHORT                  dev_numa_node;          // The NUMA node of the device
+    struct mem_map_region   dpdk_hw[PCI_MAX_BAR];   // mapped region for the device's register space
+    struct mem_map_region   dpdk_seg;               // mapped region allocated for DPDK process use
 } NETUIO_CONTEXT_DATA, *PNETUIO_CONTEXT_DATA;
 
 

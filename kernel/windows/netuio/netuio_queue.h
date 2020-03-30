@@ -17,6 +17,8 @@ typedef struct _QUEUE_CONTEXT {
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(QUEUE_CONTEXT, QueueGetContext)
 
+VOID
+netuio_unmap_address_from_user_process(_In_ PNETUIO_CONTEXT_DATA netuio_contextdata);
 
 NTSTATUS
 netuio_queue_initialize(_In_ WDFDEVICE hDevice);

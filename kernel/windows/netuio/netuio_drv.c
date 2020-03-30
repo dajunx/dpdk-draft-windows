@@ -62,25 +62,8 @@ Return Value:
 NTSTATUS
 netuio_evt_device_add(_In_ WDFDRIVER Driver, _Inout_ PWDFDEVICE_INIT DeviceInit)
 {
-    NTSTATUS status;
-    WDF_PNPPOWER_EVENT_CALLBACKS    pnpPowerCallbacks;
-
     UNREFERENCED_PARAMETER(Driver);
-
-    PAGED_CODE();
-
-    // Zero out the PnpPowerCallbacks structure
-    WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerCallbacks);
-
-    // Register Plug-aNd-Play and power management callbacks
-    pnpPowerCallbacks.EvtDevicePrepareHardware = netuio_evt_prepare_hw;
-    pnpPowerCallbacks.EvtDeviceReleaseHardware = netuio_evt_release_hw;
-
-    WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerCallbacks);
-
-    status = netuio_create_device(DeviceInit);
-
-    return status;
+    return netuio_create_device(DeviceInit);
 }
 
 /*
@@ -139,4 +122,28 @@ netuio_evt_driver_context_cleanup(_In_ WDFOBJECT DriverObject)
     UNREFERENCED_PARAMETER(DriverObject);
     DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_NETUIO_INFO_LEVEL, "netUIO Driver unloaded.\n");
     PAGED_CODE();
+}
+
+/*
+Routine Description :
+    EVT_WDF_FILE_CLEANUP callback, called when user process handle is closed.
+
+    Undoes IOCTL_NETUIO_MAP_HW_INTO_USERMODE.
+
+Return value :
+    None
+-*/
+VOID
+netuio_evt_file_cleanup(_In_ WDFFILEOBJECT FileObject)
+{
+    WDFDEVICE device;
+    PNETUIO_CONTEXT_DATA netuio_contextdata;
+
+    device = WdfFileObjectGetDevice(FileObject);
+    netuio_contextdata = netuio_get_context_data(device);
+
+    if (netuio_contextdata)
+    {
+        netuio_unmap_address_from_user_process(netuio_contextdata);
+    }
 }
