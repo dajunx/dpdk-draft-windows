@@ -27,6 +27,7 @@ EVT_WDF_DRIVER_DEVICE_ADD       netuio_evt_device_add;
 EVT_WDF_OBJECT_CONTEXT_CLEANUP  netuio_evt_driver_context_cleanup;
 EVT_WDF_DEVICE_PREPARE_HARDWARE netuio_evt_prepare_hw;
 EVT_WDF_DEVICE_RELEASE_HARDWARE netuio_evt_release_hw;
+EVT_WDF_FILE_CLOSE              netuio_evt_file_cleanup;
 
 EXTERN_C_END
 

@@ -27,16 +27,28 @@ Return Value:
 NTSTATUS
 netuio_create_device(_Inout_ PWDFDEVICE_INIT DeviceInit)
 {
-    WDF_OBJECT_ATTRIBUTES deviceAttributes;
-    WDFDEVICE device = NULL;
     NTSTATUS status;
+    WDFDEVICE device = NULL;
+
+    WDF_OBJECT_ATTRIBUTES deviceAttributes;
+    WDF_PNPPOWER_EVENT_CALLBACKS pnpPowerCallbacks;
+    WDF_FILEOBJECT_CONFIG fileConfig;
 
     PAGED_CODE();
 
-    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
+    // Register PnP power management callbacks
+    WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerCallbacks);
+    pnpPowerCallbacks.EvtDevicePrepareHardware = netuio_evt_prepare_hw;
+    pnpPowerCallbacks.EvtDeviceReleaseHardware = netuio_evt_release_hw;
+    WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerCallbacks);
+
+    // Register callbacks for when a HANDLE is opened or closed.
+    WDF_FILEOBJECT_CONFIG_INIT(&fileConfig, WDF_NO_EVENT_CALLBACK, WDF_NO_EVENT_CALLBACK, netuio_evt_file_cleanup);
+    WdfDeviceInitSetFileObjectConfig(DeviceInit, &fileConfig, WDF_NO_OBJECT_ATTRIBUTES);
 
     // Set the device context cleanup callback.
     // This function will be called when the WDF Device Object associated to the current device is destroyed
+    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
     deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
 
     status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
@@ -88,63 +100,112 @@ netuio_map_hw_resources(_In_ WDFDEVICE Device, _In_ WDFCMRESLIST Resources, _In_
 {
     UNREFERENCED_PARAMETER(Resources);
 
-    NTSTATUS status = STATUS_SUCCESS;
+    NTSTATUS status;
 
     PNETUIO_CONTEXT_DATA  netuio_contextdata;
     netuio_contextdata = netuio_get_context_data(Device);
 
-    if (!netuio_contextdata)
+    if (!netuio_contextdata) {
         return STATUS_UNSUCCESSFUL;
+    }
+
+    PCI_COMMON_HEADER pci_config = {0};
+    ULONG bytes_returned;
+
+    // Read PCI configuration space
+    bytes_returned = netuio_contextdata->bus_interface.GetBusData(
+        netuio_contextdata->bus_interface.Context,
+        PCI_WHICHSPACE_CONFIG,
+        &pci_config,
+        0,
+        sizeof(pci_config));
+
+    if (bytes_returned != sizeof(pci_config)) {
+        status = STATUS_NOT_SUPPORTED;
+        goto end;
+    }
+
+    // Device type is implictly enforced by .inf
+    ASSERT(PCI_CONFIGURATION_TYPE(&pci_config) == PCI_DEVICE_TYPE);
 
     PCM_PARTIAL_RESOURCE_DESCRIPTOR descriptor;
-    UINT8 bar_index = 0;
+    ULONG next_descriptor = 0;
+    ULONGLONG bar_addr = 0;
+    ULONG curr_bar = 0;
+    ULONG prev_bar = 0;
 
-    // Collect device BAR resources from the ResourcesTranslated object
-    for (ULONG idx = 0; idx < WdfCmResourceListGetCount(ResourcesTranslated); idx++) {
-        descriptor = WdfCmResourceListGetDescriptor(ResourcesTranslated, idx);
-        if (!descriptor) {
-            status = STATUS_DEVICE_CONFIGURATION_ERROR;
+    for (INT bar_index = 0; bar_index < PCI_MAX_BAR; bar_index++) {
+        prev_bar = curr_bar;
+        curr_bar = pci_config.u.type0.BaseAddresses[bar_index];
+        if (curr_bar == 0 || (prev_bar & PCI_TYPE_64BIT)) {
+            // Skip this bar
+            netuio_contextdata->bar[bar_index].base_addr.QuadPart = 0;
+            netuio_contextdata->bar[bar_index].size = 0;
+            netuio_contextdata->bar[bar_index].virt_addr = 0;
+
+            netuio_contextdata->dpdk_hw[bar_index].mdl = NULL;
+            netuio_contextdata->dpdk_hw[bar_index].mem.size = 0;
+
+            continue;
+        }
+
+        // Find next CmResourceTypeMemory
+        do {
+            descriptor = WdfCmResourceListGetDescriptor(ResourcesTranslated, next_descriptor);
+            next_descriptor++;
+
+            if (descriptor == NULL) {
+                status = STATUS_DEVICE_CONFIGURATION_ERROR;
+                goto end;
+            }
+        } while (descriptor->Type != CmResourceTypeMemory);
+
+        // Assert that we have the correct descriptor
+        ASSERT((descriptor->Flags & CM_RESOURCE_MEMORY_BAR) != 0);
+
+        if (curr_bar & PCI_TYPE_64BIT) {
+            ASSERT(bar_index != PCI_TYPE0_ADDRESSES - 1);
+            bar_addr = ((ULONGLONG)pci_config.u.type0.BaseAddresses[bar_index + 1] << 32) | (curr_bar & PCI_ADDRESS_MEMORY_ADDRESS_MASK);
+        }
+        else
+        {
+            bar_addr = curr_bar & PCI_ADDRESS_MEMORY_ADDRESS_MASK;
+        }
+
+        ASSERT((ULONGLONG)descriptor->u.Memory.Start.QuadPart == bar_addr);
+
+        // Retrieve and map the BARs
+        netuio_contextdata->bar[bar_index].base_addr.QuadPart = descriptor->u.Memory.Start.QuadPart;
+        netuio_contextdata->bar[bar_index].size = descriptor->u.Memory.Length;
+        netuio_contextdata->bar[bar_index].virt_addr = MmMapIoSpace(descriptor->u.Memory.Start,
+                                                                    descriptor->u.Memory.Length,
+                                                                    MmNonCached);
+        if (netuio_contextdata->bar[bar_index].virt_addr == NULL) {
+            status = STATUS_INSUFFICIENT_RESOURCES;
             goto end;
         }
 
-        switch (descriptor->Type) {
-        case CmResourceTypeMemory:
-            // Retrieve and map the BARs
-            netuio_contextdata->bar[bar_index].base_addr.QuadPart = descriptor->u.Memory.Start.QuadPart;
-            netuio_contextdata->bar[bar_index].size = descriptor->u.Memory.Length;
-            netuio_contextdata->bar[bar_index].virt_addr =
-                MmMapIoSpace(descriptor->u.Memory.Start, descriptor->u.Memory.Length, MmNonCached);
-
-            if (netuio_contextdata->bar[bar_index].virt_addr == NULL) {
-                status = STATUS_UNSUCCESSFUL;
-                goto end;
-            }
-
-            bar_index++;
-            break;
-
-            // Don't handle any other resource type
-            // This could be device-private type added by the PCI bus driver.
-        case CmResourceTypeInterrupt:
-        default:
-            break;
+        // Allocate an MDL for the device BAR, so we can map it to the user's process context later.
+        netuio_contextdata->dpdk_hw[bar_index].mdl = IoAllocateMdl(netuio_contextdata->bar[bar_index].virt_addr,
+                                                                   (ULONG)netuio_contextdata->bar[bar_index].size,
+                                                                   FALSE,
+                                                                   FALSE,
+                                                                   NULL);
+        if (!netuio_contextdata->dpdk_hw[bar_index].mdl) {
+            status = STATUS_INSUFFICIENT_RESOURCES;
+            goto end;
         }
-    }
 
-    // Allocate an MDL for the device BAR, so that we can map it to the user's process context later...
-    if (status == STATUS_SUCCESS) {
-        // Bar 0 is typically the HW BAR
-        if (netuio_contextdata->bar[0].virt_addr) {
-            netuio_contextdata->dpdk_hw.mdl = IoAllocateMdl(netuio_contextdata->bar[0].virt_addr, (ULONG)netuio_contextdata->bar[0].size, FALSE, FALSE, NULL);
-            if (!netuio_contextdata->dpdk_hw.mdl) {
-                status = STATUS_INSUFFICIENT_RESOURCES;
-                goto end;
-            }
-            netuio_contextdata->dpdk_hw.mem.size = netuio_contextdata->bar[0].size;
-        }
-    }
+        netuio_contextdata->dpdk_hw[bar_index].mem.size = netuio_contextdata->bar[bar_index].size;
+    } // for bar_index
+
+    status = STATUS_SUCCESS;
 
 end:
+    if (status != STATUS_SUCCESS) {
+        netuio_free_hw_resources(Device);
+    }
+
     return status;
 }
 
@@ -155,15 +216,21 @@ netuio_free_hw_resources(_In_ WDFDEVICE Device)
     netuio_contextdata = netuio_get_context_data(Device);
 
     if (netuio_contextdata) {
-        // Free the allocated MDL
-        if (netuio_contextdata->dpdk_hw.mdl)
-            IoFreeMdl(netuio_contextdata->dpdk_hw.mdl);
-
-        // Unmap all the BAR regions previously mapped
         for (UINT8 bar_index = 0; bar_index < PCI_MAX_BAR; bar_index++) {
-            if (netuio_contextdata->bar[bar_index].virt_addr)
+
+            // Free the allocated MDLs
+            if (netuio_contextdata->dpdk_hw[bar_index].mdl) {
+                IoFreeMdl(netuio_contextdata->dpdk_hw[bar_index].mdl);
+            }
+
+            // Unmap all the BAR regions previously mapped
+            if (netuio_contextdata->bar[bar_index].virt_addr) {
                 MmUnmapIoSpace(netuio_contextdata->bar[bar_index].virt_addr, netuio_contextdata->bar[bar_index].size);
+            }
         }
+
+        RtlZeroMemory(netuio_contextdata->dpdk_hw, sizeof(netuio_contextdata->dpdk_hw));
+        RtlZeroMemory(netuio_contextdata->bar, sizeof(netuio_contextdata->bar));
     }
 }
 
@@ -246,13 +313,16 @@ create_device_specific_symbolic_link(_In_ WDFOBJECT device)
 static NTSTATUS
 allocate_usermemory_segment(_In_ WDFOBJECT device)
 {
-    NTSTATUS status = STATUS_SUCCESS;
+    NTSTATUS status;
 
     PNETUIO_CONTEXT_DATA  netuio_contextdata;
     netuio_contextdata = netuio_get_context_data(device);
 
     if (!netuio_contextdata)
-        return STATUS_UNSUCCESSFUL;
+    {
+        status = STATUS_INVALID_DEVICE_STATE;
+        goto end;
+    }
 
     PHYSICAL_ADDRESS lowest_acceptable_address;
     PHYSICAL_ADDRESS highest_acceptable_address;
@@ -287,7 +357,14 @@ allocate_usermemory_segment(_In_ WDFOBJECT device)
     // Store the region's physical address
     netuio_contextdata->dpdk_seg.mem.phys_addr = MmGetPhysicalAddress(netuio_contextdata->dpdk_seg.mem.virt_addr);
 
+    status = STATUS_SUCCESS;
+
 end:
+    if (status != STATUS_SUCCESS)
+    {
+        free_usermemory_segment(device);
+    }
+
     return status;
 }
 
@@ -299,9 +376,15 @@ free_usermemory_segment(_In_ WDFOBJECT device)
 
     if (netuio_contextdata) {
         if (netuio_contextdata->dpdk_seg.mdl)
+        {
             IoFreeMdl(netuio_contextdata->dpdk_seg.mdl);
+            netuio_contextdata->dpdk_seg.mdl = NULL;
+        }
 
         if (netuio_contextdata->dpdk_seg.mem.virt_addr)
+        {
             MmFreeContiguousMemory(netuio_contextdata->dpdk_seg.mem.virt_addr);
+            netuio_contextdata->dpdk_seg.mem.virt_addr = NULL;
+        }
     }
 }

@@ -11,52 +11,111 @@
 #pragma alloc_text (PAGE, netuio_queue_initialize)
 #endif
 
-VOID netuio_read_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, UINT32 access_size, _Out_ UINT64 *output)
-{
-    *output = 0;
-    netuio_contextdata->bus_interface.GetBusData(netuio_contextdata->bus_interface.Context,
-                                                 PCI_WHICHSPACE_CONFIG,
-                                                 output,
-                                                 offset,
-                                                 access_size);
-}
-
-VOID netuio_write_PCI_config(PNETUIO_CONTEXT_DATA netuio_contextdata, ULONG offset, UINT32 access_size, union dpdk_pci_config_io_data const *input)
-{
-    netuio_contextdata->bus_interface.SetBusData(netuio_contextdata->bus_interface.Context,
-                                                 PCI_WHICHSPACE_CONFIG,
-                                                 (PVOID)input,
-                                                 offset,
-                                                 access_size);
-}
-
-static NTSTATUS
+static void
 netuio_handle_get_hw_data_request(_In_ WDFREQUEST Request, _In_ PNETUIO_CONTEXT_DATA netuio_contextdata,
                                    _In_ PVOID outputBuf, _In_ size_t outputBufSize)
 {
-    NTSTATUS status = STATUS_SUCCESS;
-
     WDF_REQUEST_PARAMETERS params;
     WDF_REQUEST_PARAMETERS_INIT(&params);
     WdfRequestGetParameters(Request, &params);
 
-    if (!netuio_contextdata || (outputBufSize != sizeof(struct dpdk_private_info))) {
-        status = STATUS_INVALID_PARAMETER;
-        goto end;
-    }
+    ASSERT(outputBufSize == sizeof(struct dpdk_private_info));
 
     struct dpdk_private_info *dpdk_pvt_info = (struct dpdk_private_info *)outputBuf;
     RtlZeroMemory(dpdk_pvt_info, outputBufSize);
 
-    dpdk_pvt_info->hw.phys_addr.QuadPart = netuio_contextdata->bar[0].base_addr.QuadPart;
-    dpdk_pvt_info->hw.user_mapped_virt_addr = netuio_contextdata->dpdk_hw.mem.user_mapped_virt_addr;
-    dpdk_pvt_info->hw.size = netuio_contextdata->bar[0].size;
+    for (ULONG idx = 0; idx < PCI_MAX_BAR; idx++) {
+        dpdk_pvt_info->hw[idx].phys_addr.QuadPart = netuio_contextdata->bar[idx].base_addr.QuadPart;
+        dpdk_pvt_info->hw[idx].user_mapped_virt_addr = netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr;
+        dpdk_pvt_info->hw[idx].size = netuio_contextdata->bar[idx].size;
+    }
 
     dpdk_pvt_info->ms.phys_addr.QuadPart = netuio_contextdata->dpdk_seg.mem.phys_addr.QuadPart;
     dpdk_pvt_info->ms.user_mapped_virt_addr = netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr;
     dpdk_pvt_info->ms.size = netuio_contextdata->dpdk_seg.mem.size;
+}
+
+/*
+Routine Description:
+    Maps address ranges into the usermode process's address space.  The following
+    ranges are mapped:
+
+        * Any PCI BARs that our device was assigned
+        * The scratch buffer of contiguous pages
+
+Return Value:
+    NTSTATUS
+*/
+static NTSTATUS
+netuio_map_address_into_user_process(_In_ PNETUIO_CONTEXT_DATA netuio_contextdata)
+{
+    NTSTATUS status = STATUS_SUCCESS;
+
+    // Map the scratch memory regions to the user's process context
+    MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_seg.mdl);
+    netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr =
+        MmMapLockedPagesSpecifyCache(
+            netuio_contextdata->dpdk_seg.mdl, UserMode, MmCached,
+            NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
+
+    if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr == NULL) {
+        status = STATUS_INSUFFICIENT_RESOURCES;
+        goto end;
+    }
+
+    // Map any device BAR(s) to the user's process context
+    for (INT idx = 0; idx < PCI_MAX_BAR; idx++) {
+        if (netuio_contextdata->dpdk_hw[idx].mdl == NULL) {
+            continue;
+        }
+
+        MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_hw[idx].mdl);
+        netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr =
+            MmMapLockedPagesSpecifyCache(
+                netuio_contextdata->dpdk_hw[idx].mdl, UserMode, MmCached,
+                NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
+
+        if (netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr == NULL) {
+            status = STATUS_INSUFFICIENT_RESOURCES;
+            goto end;
+        }
+    }
+
 end:
+    if (status != STATUS_SUCCESS) {
+		netuio_unmap_address_from_user_process(netuio_contextdata);
+    }
+
     return status;
+}
+
+/*
+Routine Description:
+    Unmaps all address ranges from the usermode process address space.
+    MUST be called in the context of the same process which created
+    the mapping.
+
+Return Value:
+    None
+ */
+VOID
+netuio_unmap_address_from_user_process(_In_ PNETUIO_CONTEXT_DATA netuio_contextdata)
+{
+    if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr != NULL) {
+        MmUnmapLockedPages(
+            netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr,
+            netuio_contextdata->dpdk_seg.mdl);
+        netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr = NULL;
+    }
+
+    for (INT idx = 0; idx < PCI_MAX_BAR; idx++) {
+        if (netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr != NULL) {
+            MmUnmapLockedPages(
+                netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr,
+                netuio_contextdata->dpdk_hw[idx].mdl);
+            netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr = NULL;
+        }
+    }
 }
 
 /*
@@ -123,7 +182,7 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     netuio_contextdata = netuio_get_context_data(device);
 
     switch (IoControlCode) {
-    case IOCTL_NETUIO_GET_HW_DATA:
+    case IOCTL_NETUIO_MAP_HW_INTO_USERMODE:
         // First retrieve the input buffer and see if it matches our device
         status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_private_info), &input_buf, &input_buf_size);
         if (!NT_SUCCESS(status)) {
@@ -140,24 +199,10 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
             break;
         }
 
-        // Map the previously allocated/defined memory regions to the user's process context
-        MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_hw.mdl);
-        netuio_contextdata->dpdk_hw.mem.user_mapped_virt_addr =
-                            MmMapLockedPagesSpecifyCache(netuio_contextdata->dpdk_hw.mdl, UserMode, MmCached,
-        NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
-
-        MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_seg.mdl);
-        netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr =
-                            MmMapLockedPagesSpecifyCache(netuio_contextdata->dpdk_seg.mdl, UserMode, MmCached,
-        NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
-
-        if (!netuio_contextdata->dpdk_hw.mem.user_mapped_virt_addr && !netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr) {
-            status = STATUS_INSUFFICIENT_RESOURCES;
+        if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr != NULL) {
+            status = STATUS_ALREADY_COMMITTED;
             break;
         }
-
-		// Zero out the physically contiguous block
-		RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
 
         // Return relevant data to the caller
         status = WdfRequestRetrieveOutputBuffer(Request, sizeof(struct dpdk_private_info), &output_buf, &output_buf_size);
@@ -165,10 +210,18 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
             status = STATUS_INVALID_BUFFER_SIZE;
             break;
         }
+
+        // Zero out the physically contiguous block
+        RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
+
+        status = netuio_map_address_into_user_process(netuio_contextdata);
+        if (status != STATUS_SUCCESS) {
+            break;
+        }
+
         ASSERT(output_buf_size == OutputBufferLength);
-        status = netuio_handle_get_hw_data_request(Request, netuio_contextdata, output_buf, output_buf_size);
-        if (NT_SUCCESS(status))
-            bytes_returned = output_buf_size;
+        netuio_handle_get_hw_data_request(Request, netuio_contextdata, output_buf, output_buf_size);
+        bytes_returned = output_buf_size;
 
         break;
 
@@ -206,19 +259,22 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
         ASSERT(output_buf_size == OutputBufferLength);
 
         if (dpdk_pci_io_input->op == PCI_IO_READ) {
-            netuio_read_PCI_config(netuio_contextdata,
-                                   dpdk_pci_io_input->offset,
-                                   dpdk_pci_io_input->access_size,
-                                   (UINT64*)output_buf);
-            
-            bytes_returned = sizeof(UINT64);
+            *(UINT64 *)output_buf = 0;
+            bytes_returned = netuio_contextdata->bus_interface.GetBusData(
+                netuio_contextdata->bus_interface.Context,
+                PCI_WHICHSPACE_CONFIG,
+                output_buf,
+                dpdk_pci_io_input->offset,
+                dpdk_pci_io_input->access_size);
         }
         else if (dpdk_pci_io_input->op == PCI_IO_WRITE) {
-            netuio_write_PCI_config(netuio_contextdata,
-                                    dpdk_pci_io_input->offset,
-                                    dpdk_pci_io_input->access_size,
-                                    &dpdk_pci_io_input->data);
-            bytes_returned = 0;
+            // returns bytes written
+            bytes_returned = netuio_contextdata->bus_interface.SetBusData(
+                netuio_contextdata->bus_interface.Context,
+                PCI_WHICHSPACE_CONFIG,
+                (PVOID)&dpdk_pci_io_input->data,
+                dpdk_pci_io_input->offset,
+                dpdk_pci_io_input->access_size);
         }
         else {
             status = STATUS_INVALID_PARAMETER;

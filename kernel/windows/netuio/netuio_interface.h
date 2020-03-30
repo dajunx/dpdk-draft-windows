@@ -22,8 +22,8 @@ DEFINE_GUID (GUID_DEVINTERFACE_netUIO, 0x08336f60,0x0679,0x4c6c,0x85,0xd2,0xae,0
 #define NETUIO_DRIVER_NAME  _T("netuio")
 
 // IOCTL code definitions
-#define IOCTL_NETUIO_GET_HW_DATA      CTL_CODE(FILE_DEVICE_NETWORK, 51, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
-#define IOCTL_NETUIO_PCI_CONFIG_IO    CTL_CODE(FILE_DEVICE_NETWORK, 52, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
+#define IOCTL_NETUIO_MAP_HW_INTO_USERMODE CTL_CODE(FILE_DEVICE_NETWORK, 51, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
+#define IOCTL_NETUIO_PCI_CONFIG_IO        CTL_CODE(FILE_DEVICE_NETWORK, 52, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
 
 struct mem_region {
     UINT64           size;       // memory region size
@@ -43,13 +43,13 @@ enum pci_io {
     PCI_IO_WRITE = 1
 };
 
+#define PCI_MAX_BAR 6
+
 struct dpdk_private_info
 {
-    struct mem_region   hw;
+    struct mem_region   hw[PCI_MAX_BAR];
     struct mem_region   ms;
     struct dev_addr     dev_addr;
-    struct mem_region	bar1;
-//  struct mem_region	bar2;
     UINT16              dev_id;
     UINT16              sub_dev_id;
     USHORT              dev_numa_node;

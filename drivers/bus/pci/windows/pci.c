@@ -215,8 +215,9 @@ int pci_config_io(const struct rte_pci_device *dev, void *buf,
 
 	ret = 0;
 error:
-	if (f != INVALID_HANDLE_VALUE)
-		CloseHandle(f);
+	// Closing the handle will undo IOCTL_NETUIO_MAP_HW_INTO_USERMODE
+	//if (f != INVALID_HANDLE_VALUE)
+	//	CloseHandle(f);
 
 	return ret;
 }
@@ -311,9 +312,10 @@ int get_device_resource_info(HDEVINFO hDevInfo, PSP_DEVINFO_DATA pDeviceInfoData
 
 	/* Open the driver */
 	TCHAR   device_name[MAX_DEVICENAME_SZ];
-	HANDLE  f = INVALID_HANDLE_VALUE;
+	HANDLE hNetUIO = INVALID_HANDLE_VALUE;
 	PSP_DEVICE_INTERFACE_DETAIL_DATA dev_interface_detail = NULL;
 	DWORD   dwError = 0;
+	unsigned int idx;
 
 	/* Obtain the netUIO driver interface (if available) for this device */
 	DWORD   required_size = 0;
@@ -356,12 +358,14 @@ int get_device_resource_info(HDEVINFO hDevInfo, PSP_DEVINFO_DATA pDeviceInfoData
 		goto end;
 	}
 
-	f = CreateFile(dev_interface_detail->DevicePath,
-			GENERIC_READ | GENERIC_WRITE,
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-			NULL, OPEN_EXISTING, 0, NULL);
-
-	if (f == INVALID_HANDLE_VALUE) {
+	hNetUIO = CreateFile(dev_interface_detail->DevicePath,
+			             GENERIC_READ | GENERIC_WRITE,
+			             FILE_SHARE_READ | FILE_SHARE_WRITE,
+			             NULL,
+						 OPEN_EXISTING,
+						 FILE_ATTRIBUTE_NORMAL,
+						 NULL);
+	if (hNetUIO == INVALID_HANDLE_VALUE) {
 		//RTE_LOG(DEBUG, EAL, "Unable to open driver file \"%s\".\n", device_name);
 		goto end;
 	}
@@ -374,24 +378,34 @@ int get_device_resource_info(HDEVINFO hDevInfo, PSP_DEVINFO_DATA pDeviceInfoData
 	input_pvt_info.dev_addr.func_num = dev->addr.function;
 
 	struct dpdk_private_info output_pvt_info = { 0 };
-	if (send_ioctl(f, IOCTL_NETUIO_GET_HW_DATA, &input_pvt_info, sizeof(input_pvt_info),
+	if (send_ioctl(hNetUIO, IOCTL_NETUIO_MAP_HW_INTO_USERMODE, &input_pvt_info, sizeof(input_pvt_info),
 						&output_pvt_info, sizeof(output_pvt_info)) != ERROR_SUCCESS)
 		goto end;
 
-	/* Set relevant values into the dev structure (use only bar 0 for hw) */
+	/* Set relevant values into the dev structure */
 	dev->device.numa_node = output_pvt_info.dev_numa_node;
-	dev->mem_resource[0].phys_addr = output_pvt_info.hw.phys_addr.QuadPart;
-	dev->mem_resource[0].addr = output_pvt_info.hw.user_mapped_virt_addr;
-	dev->mem_resource[0].len = output_pvt_info.hw.size;
+	_Static_assert(PCI_MAX_RESOURCE == PCI_MAX_BAR, "PCI_MAX_RESOURCE == PCI_MAX_BAR");
+	for (idx = 0; idx < PCI_MAX_RESOURCE; idx++) {
+		dev->mem_resource[idx].phys_addr = output_pvt_info.hw[idx].phys_addr.QuadPart;
+		dev->mem_resource[idx].addr = output_pvt_info.hw[idx].user_mapped_virt_addr;
+		dev->mem_resource[idx].len = output_pvt_info.hw[idx].size;
+	}
 
 	/* store memory segment information in global configuration */
 	if (store_memseg_info(&output_pvt_info) != ERROR_SUCCESS)
 		goto end;
 
 	ret = ERROR_SUCCESS;
+
 end:
-	if (f != INVALID_HANDLE_VALUE)
-		CloseHandle(f);
+	if (ret != ERROR_SUCCESS)
+	{
+		// Close the handle to undo IOCTL_NETUIO_MAP_HW_INTO_USERMODE
+		if (hNetUIO != INVALID_HANDLE_VALUE)
+		{
+			CloseHandle(hNetUIO);
+		}
+	}
 
 	if (dev_interface_detail)
 		free(dev_interface_detail);
