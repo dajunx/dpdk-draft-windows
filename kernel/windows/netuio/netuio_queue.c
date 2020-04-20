@@ -53,13 +53,18 @@ netuio_map_address_into_user_process(_In_ PNETUIO_CONTEXT_DATA netuio_contextdat
 
     // Map the scratch memory regions to the user's process context
     MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_seg.mdl);
-    netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr =
-        MmMapLockedPagesSpecifyCache(
-            netuio_contextdata->dpdk_seg.mdl, UserMode, MmCached,
-            NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
+    __try {
+        netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr =
+            MmMapLockedPagesSpecifyCache(netuio_contextdata->dpdk_seg.mdl, UserMode,
+                                         MmCached, NULL, FALSE, NormalPagePriority);
 
-    if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr == NULL) {
-        status = STATUS_INSUFFICIENT_RESOURCES;
+        if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr == NULL) {
+            status = STATUS_INSUFFICIENT_RESOURCES;
+            goto end;
+        }
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        status = GetExceptionCode();
         goto end;
     }
 
@@ -70,13 +75,18 @@ netuio_map_address_into_user_process(_In_ PNETUIO_CONTEXT_DATA netuio_contextdat
         }
 
         MmBuildMdlForNonPagedPool(netuio_contextdata->dpdk_hw[idx].mdl);
-        netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr =
-            MmMapLockedPagesSpecifyCache(
-                netuio_contextdata->dpdk_hw[idx].mdl, UserMode, MmCached,
-                NULL, FALSE, (NormalPagePriority | MdlMappingNoExecute));
+        __try {
+            netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr =
+                MmMapLockedPagesSpecifyCache(netuio_contextdata->dpdk_hw[idx].mdl, UserMode,
+                                             MmCached, NULL, FALSE, NormalPagePriority);
 
-        if (netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr == NULL) {
-            status = STATUS_INSUFFICIENT_RESOURCES;
+            if (netuio_contextdata->dpdk_hw[idx].mem.user_mapped_virt_addr == NULL) {
+                status = STATUS_INSUFFICIENT_RESOURCES;
+                goto end;
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            status = GetExceptionCode();
             goto end;
         }
     }
