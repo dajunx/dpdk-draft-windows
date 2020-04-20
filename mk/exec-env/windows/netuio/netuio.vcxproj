@@ -51,11 +51,13 @@
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\..\..\..\$(Platform)\$(ConfigurationName)\$(MSBuildProjectName)\</OutDir>
     <IntDir>$(SolutionDir)..\$(Platform)\$(ConfigurationName)\$(MSBuildProjectName)\</IntDir>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\..\..\..\$(Platform)\$(ConfigurationName)\$(MSBuildProjectName)\</OutDir>
     <IntDir>$(SolutionDir)..\$(Platform)\$(ConfigurationName)\$(MSBuildProjectName)\</IntDir>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
