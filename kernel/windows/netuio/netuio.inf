@@ -85,30 +85,14 @@ StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %12%\netuio.sys
 
-;
-;--- netuio_Device Coinstaller installation ------
-;
-
 [DestinationDirs]
 DefaultDestDir = 12
-netuio_Device_CoInstaller_CopyFiles = 11
-
-[netuio_Device.NT.CoInstallers]
-AddReg=netuio_Device_CoInstaller_AddReg
-CopyFiles=netuio_Device_CoInstaller_CopyFiles
-
-[netuio_Device_CoInstaller_AddReg]
-HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
-
-[netuio_Device_CoInstaller_CopyFiles]
-WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
 
 [SourceDisksFiles]
 netuio.sys  = 1,,
-WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
 
 [netuio_Device.NT.Wdf]
 KmdfService =  netuio, netuio_wdfsect
