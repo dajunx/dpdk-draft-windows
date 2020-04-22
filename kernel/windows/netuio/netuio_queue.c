@@ -168,6 +168,92 @@ netuio_queue_initialize(_In_ WDFDEVICE Device)
 
 /*
 Routine Description:
+    This routine is invoked to preprocess an I/O request before being placed into a queue.
+    It is guaranteed that it executes in the context of the process that generated the request.
+
+Return Value:
+    None
+ */
+_Use_decl_annotations_
+VOID
+netuio_evt_IO_in_caller_context(
+    IN WDFDEVICE  Device,
+    IN WDFREQUEST Request
+)
+{
+    WDF_REQUEST_PARAMETERS params = { 0 };
+    NTSTATUS status = STATUS_SUCCESS;
+    PVOID    input_buf = NULL, output_buf = NULL;
+    size_t   input_buf_size, output_buf_size;
+    size_t  bytes_returned = 0;
+    PNETUIO_CONTEXT_DATA  netuio_contextdata = NULL;
+
+    netuio_contextdata = netuio_get_context_data(Device);
+
+    WDF_REQUEST_PARAMETERS_INIT(&params);
+    WdfRequestGetParameters(Request, &params);
+
+    // We only need to be in the context of the process that initiated the request
+    //when we need to map memory to userspace. Otherwise, send the request back to framework.
+    if (!((params.Type == WdfRequestTypeDeviceControl) &&
+        (params.Parameters.DeviceIoControl.IoControlCode == IOCTL_NETUIO_MAP_HW_INTO_USERMODE)))
+    {
+        status = WdfDeviceEnqueueRequest(Device, Request);
+
+        if (!NT_SUCCESS(status))
+        {
+            WdfRequestCompleteWithInformation(Request, status, bytes_returned);
+        }
+        return;
+    }
+
+    // First retrieve the input buffer and see if it matches our device
+    status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_private_info), &input_buf, &input_buf_size);
+    if (!NT_SUCCESS(status)) {
+        status = STATUS_INVALID_BUFFER_SIZE;
+        goto end;
+    }
+
+    struct dpdk_private_info* dpdk_pvt_info = (struct dpdk_private_info*)input_buf;
+    // Ensure that the B:D:F match - otherwise, fail the IOCTL
+    if ((netuio_contextdata->addr.bus_num != dpdk_pvt_info->dev_addr.bus_num) ||
+        (netuio_contextdata->addr.dev_num != dpdk_pvt_info->dev_addr.dev_num) ||
+        (netuio_contextdata->addr.func_num != dpdk_pvt_info->dev_addr.func_num)) {
+        status = STATUS_NOT_SAME_DEVICE;
+        goto end;
+    }
+
+    if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr != NULL) {
+        status = STATUS_ALREADY_COMMITTED;
+        goto end;
+    }
+
+    // Return relevant data to the caller
+    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(struct dpdk_private_info), &output_buf, &output_buf_size);
+    if (!NT_SUCCESS(status)) {
+        status = STATUS_INVALID_BUFFER_SIZE;
+        goto end;
+    }
+
+    // Zero out the physically contiguous block
+    RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
+
+    status = netuio_map_address_into_user_process(netuio_contextdata);
+    if (status != STATUS_SUCCESS) {
+        goto end;
+    }
+
+    netuio_handle_get_hw_data_request(Request, netuio_contextdata, output_buf, output_buf_size);
+    bytes_returned = output_buf_size;
+
+end:
+    WdfRequestCompleteWithInformation(Request, status, bytes_returned);
+
+    return;
+}
+
+/*
+Routine Description:
     This event is invoked when the framework receives IRP_MJ_DEVICE_CONTROL request.
 
 Return Value:
@@ -191,112 +277,68 @@ netuio_evt_IO_device_control(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     PNETUIO_CONTEXT_DATA  netuio_contextdata;
     netuio_contextdata = netuio_get_context_data(device);
 
-    switch (IoControlCode) {
-    case IOCTL_NETUIO_MAP_HW_INTO_USERMODE:
-        // First retrieve the input buffer and see if it matches our device
-        status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_private_info), &input_buf, &input_buf_size);
-        if (!NT_SUCCESS(status)) {
-            status = STATUS_INVALID_BUFFER_SIZE;
-            break;
-        }
-
-        struct dpdk_private_info *dpdk_pvt_info = (struct dpdk_private_info *)input_buf;
-        // Ensure that the B:D:F match - otherwise, fail the IOCTL
-        if ((netuio_contextdata->addr.bus_num != dpdk_pvt_info->dev_addr.bus_num) ||
-            (netuio_contextdata->addr.dev_num != dpdk_pvt_info->dev_addr.dev_num) ||
-            (netuio_contextdata->addr.func_num != dpdk_pvt_info->dev_addr.func_num)) {
-            status = STATUS_NOT_SAME_DEVICE;
-            break;
-        }
-
-        if (netuio_contextdata->dpdk_seg.mem.user_mapped_virt_addr != NULL) {
-            status = STATUS_ALREADY_COMMITTED;
-            break;
-        }
-
-        // Return relevant data to the caller
-        status = WdfRequestRetrieveOutputBuffer(Request, sizeof(struct dpdk_private_info), &output_buf, &output_buf_size);
-        if (!NT_SUCCESS(status)) {
-            status = STATUS_INVALID_BUFFER_SIZE;
-            break;
-        }
-
-        // Zero out the physically contiguous block
-        RtlZeroMemory(netuio_contextdata->dpdk_seg.mem.virt_addr, netuio_contextdata->dpdk_seg.mem.size);
-
-        status = netuio_map_address_into_user_process(netuio_contextdata);
-        if (status != STATUS_SUCCESS) {
-            break;
-        }
-
-        ASSERT(output_buf_size == OutputBufferLength);
-        netuio_handle_get_hw_data_request(Request, netuio_contextdata, output_buf, output_buf_size);
-        bytes_returned = output_buf_size;
-
-        break;
-
-    case IOCTL_NETUIO_PCI_CONFIG_IO:
-        // First retrieve the input buffer and see if it matches our device
-        status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_pci_config_io), &input_buf, &input_buf_size);
-        if (!NT_SUCCESS(status)) {
-            status = STATUS_INVALID_BUFFER_SIZE;
-            break;
-        }
-
-        struct dpdk_pci_config_io *dpdk_pci_io_input = (struct dpdk_pci_config_io *)input_buf;
-
-        if (dpdk_pci_io_input->access_size != 1 &&
-            dpdk_pci_io_input->access_size != 2 &&
-            dpdk_pci_io_input->access_size != 4 &&
-            dpdk_pci_io_input->access_size != 8) {
-            status = STATUS_INVALID_PARAMETER;
-            break;
-        }
-
-        // Ensure that the B:D:F match - otherwise, fail the IOCTL
-        if ((netuio_contextdata->addr.bus_num != dpdk_pci_io_input->dev_addr.bus_num) ||
-            (netuio_contextdata->addr.dev_num != dpdk_pci_io_input->dev_addr.dev_num) ||
-            (netuio_contextdata->addr.func_num != dpdk_pci_io_input->dev_addr.func_num)) {
-            status = STATUS_NOT_SAME_DEVICE;
-            break;
-        }
-        // Retrieve output buffer
-        status = WdfRequestRetrieveOutputBuffer(Request, sizeof(UINT64), &output_buf, &output_buf_size);
-        if (!NT_SUCCESS(status)) {
-            status = STATUS_INVALID_BUFFER_SIZE;
-            break;
-        }
-        ASSERT(output_buf_size == OutputBufferLength);
-
-        if (dpdk_pci_io_input->op == PCI_IO_READ) {
-            *(UINT64 *)output_buf = 0;
-            bytes_returned = netuio_contextdata->bus_interface.GetBusData(
-                netuio_contextdata->bus_interface.Context,
-                PCI_WHICHSPACE_CONFIG,
-                output_buf,
-                dpdk_pci_io_input->offset,
-                dpdk_pci_io_input->access_size);
-        }
-        else if (dpdk_pci_io_input->op == PCI_IO_WRITE) {
-            // returns bytes written
-            bytes_returned = netuio_contextdata->bus_interface.SetBusData(
-                netuio_contextdata->bus_interface.Context,
-                PCI_WHICHSPACE_CONFIG,
-                (PVOID)&dpdk_pci_io_input->data,
-                dpdk_pci_io_input->offset,
-                dpdk_pci_io_input->access_size);
-        }
-        else {
-            status = STATUS_INVALID_PARAMETER;
-            break;
-        }
-
-        break;
-
-    default:
-        break;
+    if (IoControlCode != IOCTL_NETUIO_PCI_CONFIG_IO)
+    {
+        status = STATUS_INVALID_DEVICE_REQUEST;
+        goto end;
     }
 
+    // First retrieve the input buffer and see if it matches our device
+    status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_pci_config_io), &input_buf, &input_buf_size);
+    if (!NT_SUCCESS(status)) {
+        status = STATUS_INVALID_BUFFER_SIZE;
+        goto end;
+    }
+
+    struct dpdk_pci_config_io *dpdk_pci_io_input = (struct dpdk_pci_config_io *)input_buf;
+
+    if (dpdk_pci_io_input->access_size != 1 &&
+        dpdk_pci_io_input->access_size != 2 &&
+        dpdk_pci_io_input->access_size != 4 &&
+        dpdk_pci_io_input->access_size != 8) {
+        status = STATUS_INVALID_PARAMETER;
+        goto end;
+    }
+
+    // Ensure that the B:D:F match - otherwise, fail the IOCTL
+    if ((netuio_contextdata->addr.bus_num != dpdk_pci_io_input->dev_addr.bus_num) ||
+        (netuio_contextdata->addr.dev_num != dpdk_pci_io_input->dev_addr.dev_num) ||
+        (netuio_contextdata->addr.func_num != dpdk_pci_io_input->dev_addr.func_num)) {
+        status = STATUS_NOT_SAME_DEVICE;
+        goto end;
+    }
+    // Retrieve output buffer
+    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(UINT64), &output_buf, &output_buf_size);
+    if (!NT_SUCCESS(status)) {
+        status = STATUS_INVALID_BUFFER_SIZE;
+        goto end;
+    }
+    ASSERT(output_buf_size == OutputBufferLength);
+
+    if (dpdk_pci_io_input->op == PCI_IO_READ) {
+        *(UINT64 *)output_buf = 0;
+        bytes_returned = netuio_contextdata->bus_interface.GetBusData(
+            netuio_contextdata->bus_interface.Context,
+            PCI_WHICHSPACE_CONFIG,
+            output_buf,
+            dpdk_pci_io_input->offset,
+            dpdk_pci_io_input->access_size);
+    }
+    else if (dpdk_pci_io_input->op == PCI_IO_WRITE) {
+        // returns bytes written
+        bytes_returned = netuio_contextdata->bus_interface.SetBusData(
+            netuio_contextdata->bus_interface.Context,
+            PCI_WHICHSPACE_CONFIG,
+            (PVOID)&dpdk_pci_io_input->data,
+            dpdk_pci_io_input->offset,
+            dpdk_pci_io_input->access_size);
+    }
+    else {
+        status = STATUS_INVALID_PARAMETER;
+        goto end;
+    }
+
+end:
     WdfRequestCompleteWithInformation(Request, status, bytes_returned);
 
     return;

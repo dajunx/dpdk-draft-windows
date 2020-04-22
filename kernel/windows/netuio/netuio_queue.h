@@ -27,6 +27,8 @@ netuio_queue_initialize(_In_ WDFDEVICE hDevice);
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL netuio_evt_IO_device_control;
 EVT_WDF_IO_QUEUE_IO_STOP netuio_evt_IO_stop;
 
+EVT_WDF_IO_IN_CALLER_CONTEXT netuio_evt_IO_in_caller_context;
+
 EXTERN_C_END
 
 #endif // NETUIO_QUEUE_H

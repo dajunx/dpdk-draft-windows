@@ -58,7 +58,6 @@ static NTSTATUS create_device_specific_symbolic_link(_In_ WDFOBJECT device);
 static NTSTATUS allocate_usermemory_segment(_In_ WDFOBJECT device);
 static VOID free_usermemory_segment(_In_ WDFOBJECT device);
 
-
 EXTERN_C_END
 
 #endif // NETUIO_DEV_H

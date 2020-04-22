@@ -50,6 +50,7 @@ netuio_create_device(_Inout_ PWDFDEVICE_INIT DeviceInit)
     // This function will be called when the WDF Device Object associated to the current device is destroyed
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, NETUIO_CONTEXT_DATA);
     deviceAttributes.EvtCleanupCallback = netuio_evt_device_context_cleanup;
+    WdfDeviceInitSetIoInCallerContextCallback(DeviceInit, netuio_evt_IO_in_caller_context);
 
     status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
 
