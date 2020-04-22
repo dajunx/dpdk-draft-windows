@@ -36,11 +36,18 @@
 
 [Version]
 Signature="$WINDOWS NT$"
-Class=Net
-ClassGuid={4d36e972-e325-11ce-bfc1-08002be10318}
+Class=%ClassName%
+ClassGuid={78912BC1-CB8E-4B28-A329-F322EBADBE0F}
 Provider=%Intel%
 CatalogFile=netuio.cat
 DriverVer=
+
+[ClassInstall32]
+Addreg=netuioClassReg
+
+[netuioClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
 
 ;*****************************************
 ; Install Section
@@ -103,7 +110,7 @@ KmdfLibraryVersion = $KMDFVERSION$
 SPSVCINST_ASSOCSERVICE= 0x00000002
 Intel = "Intel"
 Broadcom = "Broadcom Corporation"
-ClassName = "Intel(R) DPDK netUIO Driver"
+ClassName = "Windows UIO"
 DiskName = "DPDK netUIO Installation Disk"
 F1583.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Converged Network Adapter XL710-Q2"
 F158A.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Network Adapter XXV710 for 25GbE backplane"
