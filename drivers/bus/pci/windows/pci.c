@@ -682,7 +682,7 @@ rte_pci_scan(void)
 	SP_DEVINFO_DATA	    DeviceInfoData = { 0 };
 	int		    ret = -1;
 
-	hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_NET, NULL, NULL, DIGCF_PRESENT);
+	hDevInfo = SetupDiGetClassDevs(NULL, NULL, NULL, DIGCF_PRESENT | DIGCF_ALLCLASSES);
 	if (INVALID_HANDLE_VALUE == hDevInfo) {
 		RTE_LOG(ERR, EAL, "Unable to enumerate PCI devices.\n", __func__);
 		goto end;
