@@ -91,6 +91,7 @@ ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %12%\netuio.sys
+AddReg         = DMAr.reg
 
 [DestinationDirs]
 DefaultDestDir = 12
@@ -120,3 +121,6 @@ F153B.netuio.Description = "DPDK netUIO for Intel(R) Ethernet Connection I217-V"
 F16D7.netuio.Description = "DPDK netUIO for Broadcom P225p NetXtreme-E Dual-port 10Gb/25Gb Ethernet PCIe Adapter"
 netuio.DeviceDesc = "netuio Device"
 netuio.SVCDESC = "netuio Service"
+
+[DMAr.reg]
+HKR,Parameters,DmaRemappingCompatible,0x00010001,1
