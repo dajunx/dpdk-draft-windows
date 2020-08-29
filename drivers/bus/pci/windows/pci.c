@@ -488,6 +488,9 @@ parse_hardware_ids(char *str, unsigned strlength, uint16_t *val1, uint16_t *val2
 	if (rte_strsplit(str, strlength, strID, MAX_STR_TOKENS, '_') > MAX_STR_TOKENS - 1)
 		goto end;
 
+    if (strID[1] == NULL)
+        goto end;
+
 	/* check if the string is a combined ID value (eg: subdeviceID+subvendorID */
 	if (strlen(strID[1]) == 8) {
 		char strval1[8];
@@ -682,7 +685,7 @@ rte_pci_scan(void)
 	SP_DEVINFO_DATA	    DeviceInfoData = { 0 };
 	int		    ret = -1;
 
-	hDevInfo = SetupDiGetClassDevs(NULL, NULL, NULL, DIGCF_PRESENT | DIGCF_ALLCLASSES);
+	hDevInfo = SetupDiGetClassDevs(NULL, L"PCI", NULL, DIGCF_PRESENT | DIGCF_ALLCLASSES);
 	if (INVALID_HANDLE_VALUE == hDevInfo) {
 		RTE_LOG(ERR, EAL, "Unable to enumerate PCI devices.\n", __func__);
 		goto end;
